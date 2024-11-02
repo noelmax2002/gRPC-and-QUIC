@@ -1,0 +1,31 @@
+[package]
+name = "grpc_http3"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]] 
+name = "server"
+path = "src/server.rs"
+
+[[bin]] 
+name = "client"
+path = "src/client.rs"
+
+[dependencies]
+tokio = { version = "1.41.0", features = ["full"] }
+prost = "0.13"
+tonic = "0.12"
+quiche = "0.22.0"
+tower = "0.5.1"
+hyper = "1.4.1"
+quinn = "0.11.5"
+futures-util = "0.3.31"
+futures = "0.3"
+tokio-util = "0.7.12"
+hyper-util= "0.1.10"
+
+
+
+
+[build-dependencies]
+tonic-build = "0.12"

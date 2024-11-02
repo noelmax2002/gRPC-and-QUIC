@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\Cours\Master 2\Mémoire\git\gRPC-and-QUIC\grpc_http3\target\debug\build\quiche-afd6364b662c0736\out\build\CMakeFiles\e3798f45db130850406eba92d451c5ab\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{12FEE4AE-9C12-3C84-91A5-AA29442CBEBE}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

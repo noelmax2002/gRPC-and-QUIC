@@ -1,0 +1,10 @@
+^D:\COURS\MASTER 2\MÉMOIRE\GIT\GRPC-AND-QUIC\GRPC_HTTP3\TARGET\DEBUG\BUILD\QUICHE-AFD6364B662C0736\OUT\BUILD\CMAKEFILES\E3798F45DB130850406EBA92D451C5AB\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/user/.cargo/registry/src/index.crates.io-6f17d22bba15001f/quiche-0.22.0/deps/boringssl "-BD:/Cours/Master 2/Mémoire/git/gRPC-and-QUIC/grpc_http3/target/debug/build/quiche-afd6364b662c0736/out/build" --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file "D:/Cours/Master 2/Mémoire/git/gRPC-and-QUIC/grpc_http3/target/debug/build/quiche-afd6364b662c0736/out/build/BoringSSL.sln"
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
