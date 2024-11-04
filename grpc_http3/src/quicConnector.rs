@@ -1,5 +1,5 @@
 //use tonic::transport::{Channel};
-use tower::Service;
+use tower_service::Service;
 use std::task::{Context, Poll};
 use std::pin::Pin;
 use tonic::transport::Uri;
