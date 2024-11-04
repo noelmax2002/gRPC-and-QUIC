@@ -3,11 +3,6 @@ use hello_world::HelloRequest;
 use tonic::transport::Endpoint;
 mod quicConnector;
 use crate::quicConnector::QuicConnector;
-//use tokio::io::empty;
-use tower::service_fn;
-use tonic::transport::Uri;
-use hyper_util::rt::TokioIo;
-use std::io::empty;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -19,12 +14,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //quiche_config.verify_peer(false);  // Adjust according to security needs
     
     
-    let connector = QuicConnector::new();
+    let connector = QuicConnector::new().expect("Failed to create connector");
 
-    let endpoint = Endpoint::from_static("http://[::1]:50051")
+
+    let channel = Endpoint::from_static("http://[::1]:50051")
         .connect_with_connector_lazy(connector);
-
-    let channel = endpoint.await?;
+    
     /* 
     let channel = Endpoint::try_from("http://[::]:50051")?
     .connect_with_connector(service_fn(|_: Uri| async {
