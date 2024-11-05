@@ -3,6 +3,12 @@ use tonic::{transport::Server, Request, Response, Status};
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
 
+mod quicStream;
+use crate::quicStream::QuicStream;
+
+mod quicConnector;
+
+
 pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
@@ -27,30 +33,17 @@ impl Greeter for MyGreeter {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse().unwrap();
+    let addr : String = "[::1]:50051".parse().unwrap();
     let greeter = MyGreeter::default();
 
     println!("GreeterServer listening on {}", addr);
 
+    let quic_listener = QuicStream::new().expect("Error in the quic stream");
+
     Server::builder()
         .add_service(GreeterServer::new(greeter))
-        .serve_with_incoming(addr)
+        .serve_with_incoming(quic_listener)
         .await?;
 
     Ok(())
-}
-
-async fn http3_listener() -> Result<TokioUdpSocket, Box<dyn std::error::Error>> {
-     
-    
-    let local: SocketAddr = "0.0.0.1:50051".parse()?; 
-    
-    let mut config = quiche::Config::new(quiche::PROTOCOL_VERSION)?;
-    config.set_application_protos(quiche::h3::APPLICATION_PROTOCOL)?;
-    
-    let scid = quiche::ConnectionId::from_ref(&[0xba, 0xad, 0xf0, 0x0d]);
-    let mut conn = quiche::accept(&scid, None, socket, socket, &mut config)?;
-    
-    Ok(socket)
-    
 }

@@ -23,9 +23,9 @@ impl QuicConnector {
        let mut config = quiche::Config::new(quiche::PROTOCOL_VERSION)?;
        config.set_application_protos(quiche::h3::APPLICATION_PROTOCOL)?;
        let server_addr: SocketAddr = "0.0.0.1:50051".parse()?; //which address to use here?
-       let local: SocketAddr = "0.0.0.1:50051".parse()?; //which address to use here?
+       let local: SocketAddr = "0.0.0.2:50051".parse()?; //which address to use here?
        let scid = ConnectionId::from_ref(&[0xba, 0xad, 0xf0, 0x0d]);
-       let mut conn = quiche::connect(None, &scid, local, server_addr, &mut config).expect("Error in the quic connection");
+       let conn = quiche::connect(None, &scid, local, server_addr, &mut config).expect("Error in the quic connection");
        let h3_config = quiche::h3::Config::new().expect("Cannot load the h3 config");
 
         Ok(QuicConnector {conn: conn, h3_config: h3_config})

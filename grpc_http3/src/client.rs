@@ -10,23 +10,12 @@ pub mod hello_world {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    //let mut quiche_config = quiche::Config::new(quiche::PROTOCOL_VERSION)?;
-    //quiche_config.verify_peer(false);  // Adjust according to security needs
-    
-    
+        
     let connector = QuicConnector::new().expect("Failed to create connector");
 
 
     let channel = Endpoint::from_static("http://[::1]:50051")
-        .connect_with_connector_lazy(connector);
-    
-    /* 
-    let channel = Endpoint::try_from("http://[::]:50051")?
-    .connect_with_connector(service_fn(|_: Uri| async {
-
-        Ok::<_, std::io::Error>(empty())
-    }))
-    .await?;*/
+        .connect_with_connector(connector).await?;
 
     let mut client = GreeterClient::new(channel);
      

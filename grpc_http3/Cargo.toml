@@ -24,6 +24,7 @@ futures = "0.3"
 tokio-util = "0.7.12"
 hyper-util= "0.1.10"
 tower-service = "0.3.3"
+futures-core = "0.3.31"
 
 
 
