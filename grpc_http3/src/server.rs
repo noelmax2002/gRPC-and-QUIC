@@ -33,7 +33,7 @@ impl Greeter for MyGreeter {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr : String = "[::1]:50051".parse().unwrap();
+    let addr : String = "127.0.0.1:4433".parse().unwrap();
     let greeter = MyGreeter::default();
 
     println!("GreeterServer listening on {}", addr);

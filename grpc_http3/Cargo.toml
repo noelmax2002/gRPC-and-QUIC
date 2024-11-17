@@ -1,6 +1,7 @@
 [package]
 name = "grpc_http3"
 version = "0.1.0"
+authors = ["Maxime Noël <maxime.noel2002@gmail.com>"]
 edition = "2021"
 
 [[bin]] 
@@ -15,13 +16,20 @@ path = "src/client.rs"
 tokio = { version = "1.41.0", features = ["full"] } 
 prost = "0.13"
 tonic = "0.12" 
-quiche = "0.22.0" 
+quiche = { path = "../quiche" }
 hyper = "1.4.1" 
 futures-util = "0.3.31" 
 tower-service = "0.3.3"
 futures-core = "0.3.31" 
-
-
+docopt = "1"
+env_logger = "0.10"
+mio = { version = "0.8", features = ["net", "os-poll"] }
+url = "2.5.3"
+log = "0.4"
+octets = { version = "0.3", path = "../octets" }
+ring = "0.17"
+libc = "0.2"
+nix = { version = "0.27", features = ["net", "socket", "uio"] }
 
 
 [build-dependencies]
