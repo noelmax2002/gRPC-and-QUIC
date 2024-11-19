@@ -13,6 +13,8 @@ use log::info;
 use log::debug;
 use log::error;
 use quiche::h3::NameValue;
+use std::sync::mpsc::{Sender,Receiver};
+//use future_bool::FutureBool;
 
 
 const MAX_DATAGRAM_SIZE: usize = 1350;
@@ -21,12 +23,18 @@ const HTTP_REQ_STREAM_ID: u64 = 4;
 
 pub struct QuicConnector {
     //define attributes for the connector, it's the channel to send data
-    
+    sender: Sender<String>,
+    receiver: Receiver<String>,
+    //ready: FutureBool, //may be useful to notifiy when the QUIC connection is ready
 }
 
 
 impl QuicConnector {
+    //let ready = FutureBool::new(false);
+    //let ready_clone = ready.clone();
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        let (sender, receiver) = std::sync::mpsc::channel();
+
         task::spawn_blocking(|| {
             let mut buf = [0; 65535];
             let mut out = [0; MAX_DATAGRAM_SIZE];
@@ -36,7 +44,7 @@ impl QuicConnector {
             let endpoint = match std::env::var_os("HTTPBIN_ENDPOINT") {
                 Some(val) => val.into_string().unwrap(),
     
-                None => String::from("https://cloudflare-quic.com/b"),
+                None => String::from("https://127.0.0.1:4433"),
             };
 
             println!("Connection to {} ", endpoint); 
@@ -149,19 +157,20 @@ impl QuicConnector {
             let req_start = std::time::Instant::now();
         
             let mut req_sent = false;
+            let mut i = 0;
         
-            for i in 0..2 {
-                println!("loop {}", i);
+            loop {
+                //println!("loop {}", i);
                 poll.poll(&mut events, conn.timeout()).unwrap();
         
                 // Read incoming UDP packets from the socket and feed them to quiche,
                 // until there are no more packets to read.
-                'read: for j in 0..2 {
+                'read: loop {
                     // If the event loop reported no events, it means that the timeout
                     // has expired, so handle it without attempting to read packets. We
                     // will then proceed with the send loop.
                     if events.is_empty() {
-                        println!("timed out");
+                        debug!("timed out");
         
                         conn.on_timeout();
         
@@ -175,7 +184,7 @@ impl QuicConnector {
                             // There are no more UDP packets to read, so end the read
                             // loop.
                             if e.kind() == std::io::ErrorKind::WouldBlock {
-                                println!("recv() would block");
+                                debug!("recv() would block");
                                 break 'read;
                             }
         
@@ -183,7 +192,7 @@ impl QuicConnector {
                         },
                     };
         
-                    println!("got {} bytes", len);
+                    debug!("got {} bytes", len);
         
                     let recv_info = quiche::RecvInfo {
                         to: local_addr,
@@ -200,10 +209,10 @@ impl QuicConnector {
                         },
                     };
         
-                    println!("processed {} bytes", read);
+                    debug!("processed {} bytes", read);
                 }
         
-                println!("done reading");
+                debug!("done reading");
         
                 if conn.is_closed() {
                     println!("connection closed, {:?}", conn.stats());
@@ -251,7 +260,7 @@ impl QuicConnector {
                                         read, stream_id
                                     );
         
-                                    println!("{}", unsafe {
+                                    print!("{}", unsafe {
                                         std::str::from_utf8_unchecked(&buf[..read])
                                     });
                                 }
@@ -278,7 +287,7 @@ impl QuicConnector {
                             Ok((_, quiche::h3::Event::PriorityUpdate)) => unreachable!(),
         
                             Ok((goaway_id, quiche::h3::Event::GoAway)) => {
-                                println!("GOAWAY id={}", goaway_id);
+                                info!("GOAWAY id={}", goaway_id);
                             },
         
                             Err(quiche::h3::Error::Done) => {
@@ -296,12 +305,12 @@ impl QuicConnector {
         
                 // Generate outgoing QUIC packets and send them on the UDP socket, until
                 // quiche reports that there are no more packets to be sent.
-                for i in 0..2 {
+                loop {
                     let (write, send_info) = match conn.send(&mut out) {
                         Ok(v) => v,
         
                         Err(quiche::Error::Done) => {
-                            println!("done writing");
+                            debug!("done writing");
                             break;
                         },
         
@@ -315,25 +324,27 @@ impl QuicConnector {
         
                     if let Err(e) = socket.send_to(&out[..write], send_info.to) {
                         if e.kind() == std::io::ErrorKind::WouldBlock {
-                            println!("send() would block");
+                            debug!("send() would block");
                             break;
                         }
         
                         panic!("send() failed: {:?}", e);
                     }
         
-                    println!("written {}", write);
+                    debug!("written {}", write);
                 }
         
                 if conn.is_closed() {
                     println!("connection closed, {:?}", conn.stats());
                     break;
                 }
+                i = i + 1;
             }     
+            
         });
 
 
-        Ok(QuicConnector {})
+        Ok(QuicConnector {sender, receiver})
     }
 }
 
@@ -345,7 +356,8 @@ impl tower_service::Service<Uri> for QuicConnector {
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         //determines if the connector is ready.
         //no specific conditions here so always ready.
-        Poll::Ready(Ok(()))
+        //Poll::Ready(Ok(()))
+        Poll::Pending
     }
 
     fn call(&mut self, _uri: Uri) -> Self::Future {

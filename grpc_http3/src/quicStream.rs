@@ -98,9 +98,9 @@ impl QuicStream {
         let mut clients = ClientMap::new();
     
         let local_addr = socket.local_addr().unwrap();
-    
-        for i in 0..2 {
-            println!("loop {}", i);
+        let mut i = 0;
+        loop {
+            //println!("loop {}", i);
             // Find the shorter timeout from all the active connections.
             //
             // TODO: use event loop that properly supports timers
@@ -110,12 +110,12 @@ impl QuicStream {
     
             // Read incoming UDP packets from the socket and feed them to quiche,
             // until there are no more packets to read.
-            'read: for j in 0..2 {
+            'read: loop {
                 // If the event loop reported no events, it means that the timeout
                 // has expired, so handle it without attempting to read packets. We
                 // will then proceed with the send loop.
                 if events.is_empty() {
-                    println!("timed out");
+                    debug!("timed out");
     
                     clients.values_mut().for_each(|c| c.conn.on_timeout());
     
@@ -129,7 +129,7 @@ impl QuicStream {
                         // There are no more UDP packets to read, so end the read
                         // loop.
                         if e.kind() == std::io::ErrorKind::WouldBlock {
-                            println!("recv() would block");
+                            debug!("recv() would block");
                             break 'read;
                         }
     
@@ -137,7 +137,7 @@ impl QuicStream {
                     },
                 };
     
-                println!("got {} bytes", len);
+                debug!("got {} bytes", len);
     
                 let pkt_buf = &mut buf[..len];
     
@@ -154,7 +154,7 @@ impl QuicStream {
                     },
                 };
     
-                println!("got packet {:?}", hdr);
+                debug!("got packet {:?}", hdr);
     
                 let conn_id = ring::hmac::sign(&conn_id_seed, &hdr.dcid);
                 let conn_id = &conn_id.as_ref()[..quiche::MAX_CONN_ID_LEN];
@@ -166,7 +166,7 @@ impl QuicStream {
                     !clients.contains_key(&conn_id)
                 {
                     if hdr.ty != quiche::Type::Initial {
-                        println!("Packet is not Initial");
+                        error!("Packet is not Initial");
                         continue 'read;
                     }
     
@@ -218,7 +218,7 @@ impl QuicStream {
     
                         if let Err(e) = socket.send_to(out, from) {
                             if e.kind() == std::io::ErrorKind::WouldBlock {
-                                println!("send() would block");
+                                debug!("send() would block");
                                 break;
                             }
     
@@ -288,12 +288,12 @@ impl QuicStream {
                     },
                 };
     
-                println!("{} processed {} bytes", client.conn.trace_id(), read);
+                debug!("{} processed {} bytes", client.conn.trace_id(), read);
     
                 // Create a new HTTP/3 connection as soon as the QUIC connection
                 // is established.
 
-                println!("connection established ? {}", client.conn.is_established()); 
+                //println!("connection established ? {}", client.conn.is_established()); 
                 if (client.conn.is_in_early_data() || client.conn.is_established()) &&
                     client.http3_conn.is_none()
                 {
@@ -325,7 +325,7 @@ impl QuicStream {
                     }
     
                     // Process HTTP/3 events.
-                    for i in 0..2 {
+                    loop {
                         let http3_conn = client.http3_conn.as_mut().unwrap();
     
                         match http3_conn.poll(&mut client.conn) {
@@ -342,7 +342,7 @@ impl QuicStream {
                             },
     
                             Ok((stream_id, quiche::h3::Event::Data)) => {
-                                println!(
+                                info!(
                                     "{} got data on stream id {}",
                                     client.conn.trace_id(),
                                     stream_id
@@ -382,12 +382,12 @@ impl QuicStream {
             // them on the UDP socket, until quiche reports that there are no more
             // packets to be sent.
             for client in clients.values_mut() {
-                for i in 0..2 {
+                loop {
                     let (write, send_info) = match client.conn.send(&mut out) {
                         Ok(v) => v,
     
                         Err(quiche::Error::Done) => {
-                            println!("{} done writing", client.conn.trace_id());
+                            debug!("{} done writing", client.conn.trace_id());
                             break;
                         },
     
@@ -408,7 +408,7 @@ impl QuicStream {
                         panic!("send() failed: {:?}", e);
                     }
     
-                    println!("{} written {} bytes", client.conn.trace_id(), write);
+                    debug!("{} written {} bytes", client.conn.trace_id(), write);
                 }
             }
     
@@ -426,8 +426,10 @@ impl QuicStream {
     
                 !c.conn.is_closed()
             });
+            i = i + 1;
         }
-       });
+            
+        });
     
       
         
@@ -695,7 +697,7 @@ fn handle_writable(client: &mut Client, stream_id: u64) {
     let conn = &mut client.conn;
     let http3_conn = &mut client.http3_conn.as_mut().unwrap();
 
-    println!("{} stream {} is writable", conn.trace_id(), stream_id);
+    debug!("{} stream {} is writable", conn.trace_id(), stream_id);
 
     if !client.partial_responses.contains_key(&stream_id) {
         return;
