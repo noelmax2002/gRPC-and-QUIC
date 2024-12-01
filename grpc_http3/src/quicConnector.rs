@@ -1,6 +1,7 @@
 //use tonic::transport::{Channel};
 use tower_service;
 use std::task::{Context, Poll};
+use std::sync::{Arc, Mutex};
 use std::pin::Pin;
 use tonic::transport::Uri;
 use hyper::rt::{Write,Read};
@@ -14,6 +15,7 @@ use log::debug;
 use log::error;
 use quiche::h3::NameValue;
 use std::sync::mpsc::{Sender,Receiver};
+use tokio::io::ErrorKind;
 //use future_bool::FutureBool;
 
 
@@ -23,19 +25,26 @@ const HTTP_REQ_STREAM_ID: u64 = 4;
 
 pub struct QuicConnector {
     //define attributes for the connector, it's the channel to send data
-    sender: Sender<String>,
-    receiver: Receiver<String>,
+    senderCS: Sender<Vec<u8>>,
+    //receiverCS: Receiver<Vec<u8>>,
+    //senderSC: Sender<Vec<u8>>,
+    //receiverSC: Receiver<Vec<u8>>,
     //ready: FutureBool, //may be useful to notifiy when the QUIC connection is ready
 }
 
 
 impl QuicConnector {
-    //let ready = FutureBool::new(false);
-    //let ready_clone = ready.clone();
+    
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let (sender, receiver) = std::sync::mpsc::channel();
+        let (senderCS, receiverCS) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to send data from client to server
+        //let (senderSC, receiverSC) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to receive response from server
 
-        task::spawn_blocking(|| {
+        //let ready = FutureBool::new(false);
+        //let ready_clone = ready.clone();
+
+        let receiverCS_ref = Arc::new(Mutex::new(receiverCS));
+
+        task::spawn_blocking(move || {
             let mut buf = [0; 65535];
             let mut out = [0; MAX_DATAGRAM_SIZE];
         
@@ -144,7 +153,7 @@ impl QuicConnector {
             }
         
             let req = vec![
-                quiche::h3::Header::new(b":method", b"GET"),
+                quiche::h3::Header::new(b":method", b"POST"),
                 quiche::h3::Header::new(b":scheme", url.scheme().as_bytes()),
                 quiche::h3::Header::new(
                     b":authority",
@@ -221,6 +230,9 @@ impl QuicConnector {
         
                 // Create a new HTTP/3 connection once the QUIC connection is established.
                 if conn.is_established() && http3_conn.is_none() {
+                    //The connection is established, send message to tonic to notify the connection is ready
+                    //ready_clone.set(true);
+
                     http3_conn = Some(
                         quiche::h3::Connection::with_transport(&mut conn, &h3_config)
                         .expect("Unable to create HTTP/3 connection, check the server's uni stream limit and window size"),
@@ -230,12 +242,45 @@ impl QuicConnector {
                 // Send HTTP requests once the QUIC connection is established, and until
                 // all requests have been sent.
                 if let Some(h3_conn) = &mut http3_conn {
+                    /* 
                     if !req_sent {
                         println!("sending HTTP request {:?}", req);
         
                         h3_conn.send_request(&mut conn, &req, true).unwrap();
         
                         req_sent = true;
+                    }*/
+                    /* 
+                    while let Ok(data) = receiverCS_ref.lock().unwwrap().try_recv() {
+                        //println!("sending HTTP request {:?}", req);
+                        h3_conn.send_request(&mut conn, &req, true).unwrap();
+                        h3_conn.send_body(&mut conn, HTTP_REQ_STREAM_ID, &data, true).unwrap();
+                    }*/
+
+                    loop {
+                        match receiverCS_ref.lock().unwrap().try_recv() {
+                            Ok(msg) => {println!("{:?}", msg); 
+                                    //println!("sending HTTP request {:?}", req);
+                                    //println!("Data size: {} bytes", size_of_val(&*msg));
+                            
+                                    let req = vec![
+                                        quiche::h3::Header::new(b":method", b"GET"),
+                                        quiche::h3::Header::new(b":scheme", b"https"),
+                                        quiche::h3::Header::new(b":authority", b"quic.tech"),
+                                        quiche::h3::Header::new(b":path", b"/"),
+                                        quiche::h3::Header::new(b"user-agent", b"quiche"),
+                                        quiche::h3::Header::new(
+                                            b"content-length",
+                                            size_of_val(&*msg).to_string().as_bytes(),
+                                        ),
+                                    ];
+
+                                    let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
+                                    h3_conn.send_body(&mut conn, stream_id, &msg, true);
+                                }
+            
+                            Err(_) => {println!("breaking this loop"); break;}
+                        }
                     }
                 }
         
@@ -344,7 +389,7 @@ impl QuicConnector {
         });
 
 
-        Ok(QuicConnector {sender, receiver})
+        Ok(QuicConnector {senderCS})
     }
 }
 
@@ -356,24 +401,39 @@ impl tower_service::Service<Uri> for QuicConnector {
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         //determines if the connector is ready.
         //no specific conditions here so always ready.
-        //Poll::Ready(Ok(()))
-        Poll::Pending
+        Poll::Ready(Ok(()))
+        //Poll::Pending
     }
 
     fn call(&mut self, _uri: Uri) -> Self::Future {
         // return a futur when the connection is ready
-        future::ready(Ok(HTTP3Connection::new()))
+        future::ready(Ok(HTTP3Connection::new(self.senderCS.clone())))
     }
 }
 
 pub struct HTTP3Connection {
-    //connector: quiche::h3::Connection,
+    //connector: QuicConnector,
+    sender: Sender<Vec<u8>>,
+    //receiver: Receiver<Vec<u8>>,
 }
 
 impl HTTP3Connection {
-    pub fn new(/*connector: quiche::h3::Connection*/) -> Self {
+    pub fn new(sender: Sender<Vec<u8>>) -> Self {
         HTTP3Connection {
             //connector: connector,
+            sender: sender,
+            //receiver: receiver,
+        }
+    }
+
+    pub fn write_to_channel(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        // Convert the buffer to a Vec<u8> since the Sender requires owned data
+        let data = buf.to_vec();
+
+        // Try to send the data through the channel
+        match self.sender.send(data) {
+            Ok(_) => Ok(buf.len()), // Successfully sent all bytes to the QUIC thread
+            Err(_) => Err(Error::new(ErrorKind::BrokenPipe, "Channel closed")),
         }
     }
 }
@@ -394,10 +454,23 @@ impl Write for HTTP3Connection {
     fn poll_write(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
-        _buf: &[u8],
+        buf: &[u8],
     ) -> Poll<Result<usize, Error>> {
         // WRITTE PACKETS
-        Poll::Pending
+       // Poll::Pending
+       let this = self.get_mut();
+
+       // Attempt to write data to your channel
+       match this.write_to_channel(buf) {
+           Ok(n) => Poll::Ready(Ok(n)),
+           /* 
+           Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+               // If the channel is full, register the waker and return Pending
+               this.register_waker(cx.waker().clone());
+               Poll::Pending
+           }*/
+           Err(e) => Poll::Ready(Err(e)),
+    }
     }
 
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Error>> {

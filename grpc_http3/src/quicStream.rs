@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use quiche::ConnectionId;
 use futures_core::stream::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
+use std::sync::{Arc, Mutex};
 use tonic::transport::server::Connected;
 use std::io::Error;
 use tokio::task;
@@ -42,13 +43,16 @@ type ClientMap = HashMap<quiche::ConnectionId<'static>, Client>;
 
 
 pub struct QuicStream {
-    
+    receiverCS_ref: Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
 }
 
 impl QuicStream {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+       let (senderCS, receiverCS) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to send data from client to server
+       let receiverCS_ref = Arc::new(Mutex::new(receiverCS));
+
        //initialize the connection
-       task::spawn_blocking(|| {
+       task::spawn_blocking(move || {
         let mut buf = [0; 65535];
         let mut out = [0; MAX_DATAGRAM_SIZE];
 
@@ -342,11 +346,20 @@ impl QuicStream {
                             },
     
                             Ok((stream_id, quiche::h3::Event::Data)) => {
-                                info!(
+                                println!(
                                     "{} got data on stream id {}",
                                     client.conn.trace_id(),
                                     stream_id
                                 );
+
+                                let mut body = vec![0; 4096];
+
+                                // Consume all body data received on the stream.
+                                while let Ok(read) = http3_conn.recv_body(&mut client.conn, stream_id, &mut body) {
+                                    println!("Received {} bytes of payload on stream {}", read, stream_id);
+                                    println!("Payload: {:?}", &body[..read]);
+                                    senderCS.send(body[..read].to_vec()).unwrap();
+                                }
                             },
     
                             Ok((_stream_id, quiche::h3::Event::Finished)) => (),
@@ -433,7 +446,7 @@ impl QuicStream {
     
       
         
-        Ok(QuicStream {})
+        Ok(QuicStream {receiverCS_ref})
     }
 }
 
@@ -446,22 +459,20 @@ impl Stream for QuicStream{
         _cx: &mut Context<'_>
     ) -> Poll<Option<Self::Item>>{
         // Poll the connection
-        Poll::Pending
-        //Poll::Ready(Some(Ok(IO::new())))
+        //Poll::Pending
+        Poll::Ready(Some(Ok(IO::new(self.receiverCS_ref.clone()))))
     }
 
 }
 
 pub struct IO {
     //define attributes for the IO
-    //conn: quiche::h3::Connection,
+    receiverCS_ref:  Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
 }
 
 impl IO {
-    pub fn new(/*conn: quiche::h3::Connection*/) -> Self {
-        IO {
-            //conn: conn,
-        }
+    pub fn new(receiverCS_ref: Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,) -> Self {
+        IO {receiverCS_ref}
     }
 }
 
@@ -469,9 +480,14 @@ impl AsyncRead for IO {
     fn poll_read(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
-        _buf: &mut tokio::io::ReadBuf
+        buf: &mut tokio::io::ReadBuf
     ) -> Poll<Result<(), std::io::Error>> {
         // READ PACKETS
+        
+        let data = self.receiverCS_ref.lock().unwrap().recv().unwrap();
+        println!("Received data: {:?}", data);
+        buf.put_slice(&data);
+        //Poll::Ready(Ok(()))
         Poll::Pending
     }
 }
@@ -593,8 +609,10 @@ fn handle_request(
     // We decide the response based on headers alone, so stop reading the
     // request stream so that any body is ignored and pointless Data events
     // are not generated.
+    /* 
     conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0)
         .unwrap();
+    */
 
     let (headers, body) = build_response(root, headers);
 
