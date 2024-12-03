@@ -13,8 +13,10 @@ use ring::rand::*;
 use log::info;
 use log::debug;
 use log::error;
+use std::time::Duration;
 use quiche::h3::NameValue;
-use std::sync::mpsc::{Sender,Receiver};
+//use std::sync::mpsc::{Sender,Receiver};
+use flume::{Sender, Receiver};
 use tokio::io::ErrorKind;
 //use future_bool::FutureBool;
 
@@ -26,6 +28,7 @@ const HTTP_REQ_STREAM_ID: u64 = 4;
 pub struct QuicConnector {
     //define attributes for the connector, it's the channel to send data
     senderCS: Sender<Vec<u8>>,
+    receiverSC: Receiver<Vec<u8>>,
     //receiverCS: Receiver<Vec<u8>>,
     //senderSC: Sender<Vec<u8>>,
     //receiverSC: Receiver<Vec<u8>>,
@@ -36,8 +39,9 @@ pub struct QuicConnector {
 impl QuicConnector {
     
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let (senderCS, receiverCS) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to send data from client to server
-        //let (senderSC, receiverSC) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to receive response from server
+        //let (senderCS, receiverCS) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to send data from client to server
+        let (senderCS, receiverCS) = flume::unbounded::<Vec<u8>>();  //channel to send data from client to server
+        let (senderSC, receiverSC) = flume::unbounded::<Vec<u8>>();  //channel to receive response from server
 
         //let ready = FutureBool::new(false);
         //let ready_clone = ready.clone();
@@ -260,7 +264,6 @@ impl QuicConnector {
                     loop {
                         match receiverCS_ref.lock().unwrap().try_recv() {
                             Ok(msg) => {println!("{:?}", msg); 
-                                    //println!("sending HTTP request {:?}", req);
                                     //println!("Data size: {} bytes", size_of_val(&*msg));
                             
                                     let req = vec![
@@ -275,6 +278,7 @@ impl QuicConnector {
                                         ),
                                     ];
 
+                                    println!("sending HTTP request {:?}", req);
                                     let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
                                     h3_conn.send_body(&mut conn, stream_id, &msg, true);
                                 }
@@ -305,9 +309,10 @@ impl QuicConnector {
                                         read, stream_id
                                     );
         
-                                    print!("{}", unsafe {
+                                    println!("response is {}", unsafe {
                                         std::str::from_utf8_unchecked(&buf[..read])
                                     });
+                                    senderSC.send(buf[..read].to_vec()).unwrap();
                                 }
                             },
         
@@ -389,7 +394,7 @@ impl QuicConnector {
         });
 
 
-        Ok(QuicConnector {senderCS})
+        Ok(QuicConnector {senderCS, receiverSC})
     }
 }
 
@@ -407,21 +412,22 @@ impl tower_service::Service<Uri> for QuicConnector {
 
     fn call(&mut self, _uri: Uri) -> Self::Future {
         // return a futur when the connection is ready
-        future::ready(Ok(HTTP3Connection::new(self.senderCS.clone())))
+        future::ready(Ok(HTTP3Connection::new(self.senderCS.clone(), self.receiverSC.clone())))
     }
 }
 
 pub struct HTTP3Connection {
     //connector: QuicConnector,
     sender: Sender<Vec<u8>>,
-    //receiver: Receiver<Vec<u8>>,
+    receiver: Receiver<Vec<u8>>,
 }
 
 impl HTTP3Connection {
-    pub fn new(sender: Sender<Vec<u8>>) -> Self {
+    pub fn new(sender: Sender<Vec<u8>>, receiver: Receiver<Vec<u8>>) -> Self {
         HTTP3Connection {
             //connector: connector,
             sender: sender,
+            receiver: receiver,
             //receiver: receiver,
         }
     }
@@ -443,10 +449,27 @@ impl Read for HTTP3Connection {
     fn poll_read(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
-        _buf: ReadBufCursor<'_>,
+        buf: ReadBufCursor<'_>,
     ) -> Poll<Result<(), Error>> {
         // READ PACKETS
-        Poll::Pending
+        //Poll::Pending
+        println!("Pending read");
+        /*
+        let five_seconds = Duration::new(5, 0);
+        let msg = self.receiver.recv_timeout(five_seconds);
+        match msg {
+            Ok(data) => {
+                println!("Received data: {:?}", data);
+                buf.put_slice(&data);
+                Poll::Ready(Ok(()))
+            },
+            Err(e) => {
+                println!("Error receiving data: {:?}", e);
+                //Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, e)))
+                Poll::Pending
+            }
+        } */
+       Poll::Pending
     }
 }
 

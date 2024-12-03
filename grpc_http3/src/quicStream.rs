@@ -13,6 +13,12 @@ use log::debug;
 use log::error;
 use log::warn;
 use log::trace;
+use futures_util::Future;
+use std::time::Duration;
+use std::thread;
+//use std::task::Waker;
+//use futures_util::task::Waker;
+use futures_util::task::Waker;
 
 use std::net;
 
@@ -43,13 +49,21 @@ type ClientMap = HashMap<quiche::ConnectionId<'static>, Client>;
 
 
 pub struct QuicStream {
-    receiverCS_ref: Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
+   //receiverCS_ref: Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
+   receiverCS: flume::Receiver<Vec<u8>>,
+   senderSC: flume::Sender<Vec<u8>>,
+   n: i32,
+   shared_state: Arc<Mutex<SharedState>>,
 }
 
 impl QuicStream {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-       let (senderCS, receiverCS) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to send data from client to server
-       let receiverCS_ref = Arc::new(Mutex::new(receiverCS));
+       //std::env::set_var("RUST_BACKTRACE", "1");
+        
+       //let (senderCS, receiverCS) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to send data from client to server
+       let (senderCS, receiverCS) = flume::unbounded::<Vec<u8>>();
+       let (senderSC, receiverSC) = flume::unbounded::<Vec<u8>>(); 
+       //let receiverCS_ref = Arc::new(Mutex::new(receiverCS));
 
        //initialize the connection
        task::spawn_blocking(move || {
@@ -337,12 +351,13 @@ impl QuicStream {
                                 stream_id,
                                 quiche::h3::Event::Headers { list, .. },
                             )) => {
-                                handle_request(
+                                /*handle_request(
                                     client,
                                     stream_id,
                                     &list,
                                     "examples/root",
-                                );
+                                    receiverSC.clone(),
+                                );*/
                             },
     
                             Ok((stream_id, quiche::h3::Event::Data)) => {
@@ -357,8 +372,20 @@ impl QuicStream {
                                 // Consume all body data received on the stream.
                                 while let Ok(read) = http3_conn.recv_body(&mut client.conn, stream_id, &mut body) {
                                     println!("Received {} bytes of payload on stream {}", read, stream_id);
-                                    println!("Payload: {:?}", &body[..read]);
-                                    senderCS.send(body[..read].to_vec()).unwrap();
+                                    //println!("Payload: {:?}", &body[..read]);
+                                    let data: Vec<u8> = body[..read].to_vec();
+                                    //println!("Disconnected ? {}", senderCS.is_disconnected());
+                                    let result = match senderCS.send(data) {
+                                        Ok(_) => {
+                                            //println!("Data sent successfully");
+                                        },
+                                        Err(e) => {
+                                            println!("Error sending data: {:?}", e.to_string());
+                                        }
+                                    };
+
+
+                                    //println!("Result a: {:?}", result.err().into_iter());
                                 }
                             },
     
@@ -374,6 +401,7 @@ impl QuicStream {
                             Ok((_goaway_id, quiche::h3::Event::GoAway)) => (),
     
                             Err(quiche::h3::Error::Done) => {
+                                println!("{} done reading", client.conn.trace_id());
                                 break;
                             },
     
@@ -383,11 +411,39 @@ impl QuicStream {
                                     client.conn.trace_id(),
                                     e
                                 );
+                                println!("HTTP/3 error: {:?}", e);
     
                                 break;
                             },
                         }
+                                              
+          
                     }
+
+                    loop {
+                        let http3_conn = client.http3_conn.as_mut().unwrap();
+                        println!("Trying to send data");
+                        match receiverSC.try_recv() {
+                            Ok(msg) => {println!("Sending response : {:?}", msg); 
+                                    
+                                    println!("Data size: {} bytes", size_of_val(&*msg));
+                            
+                                    let req = vec![
+                                        quiche::h3::Header::new(b":status", b"200"),
+                                        quiche::h3::Header::new(b"server", b"quiche"),
+                                        quiche::h3::Header::new(
+                                            b"content-length",
+                                            msg.len().to_string().as_bytes(),
+                                        ),
+                                    ];
+                                    println!("sending HTTP request {:?}", req);
+                                    let stream_id = http3_conn.send_request(&mut client.conn, &req, false).unwrap();
+                                    http3_conn.send_body(&mut client.conn, stream_id, &msg, true);
+                                }
+            
+                            Err(_) => {println!("nothing to send"); break;}
+                        }
+                    } 
                 }
             }
     
@@ -400,13 +456,13 @@ impl QuicStream {
                         Ok(v) => v,
     
                         Err(quiche::Error::Done) => {
-                            debug!("{} done writing", client.conn.trace_id());
+                            println!("{} done writing", client.conn.trace_id());
                             break;
                         },
     
                         Err(e) => {
                             error!("{} send failed: {:?}", client.conn.trace_id(), e);
-    
+                            println!("send failed: {:?}", e);
                             client.conn.close(false, 0x1, b"fail").ok();
                             break;
                         },
@@ -444,9 +500,42 @@ impl QuicStream {
             
         });
     
-      
+    
         
-        Ok(QuicStream {receiverCS_ref})
+        let shared_state = Arc::new(Mutex::new(SharedState {
+            completed: false,
+            waker: None,
+        }));
+    
+        let receiver = receiverCS.clone();
+        let dur = Duration::from_millis(30);
+        let thread_shared_state = shared_state.clone();
+        
+        
+        thread::spawn(move || {
+        
+            loop {
+                thread::sleep(dur);
+                let mut shared_state = thread_shared_state.lock().unwrap();
+                // Signal that the timer has completed and wake up the last
+                // task on which the future was polled, if one exists.
+                if(!receiver.is_disconnected() && !receiver.is_empty() && !shared_state.completed){
+                    println!("Data is available !");
+                    shared_state.completed = true;
+                
+                    
+                    if let Some(waker) = shared_state.waker.take() {
+                        println!("Waking up the task !");
+                        waker.wake_by_ref()
+                       
+                    }
+                }
+            }
+        });  
+
+        
+        //Ok(QuicStream {receiverCS_ref, n: 0})
+        Ok(QuicStream {receiverCS: receiverCS.clone(), senderSC: senderSC.clone(),n: 0, shared_state})
     }
 }
 
@@ -456,39 +545,202 @@ impl Stream for QuicStream{
     // Required method
     fn poll_next(
         mut self: Pin<&mut Self>,
-        _cx: &mut Context<'_>
+        cx: &mut Context<'_>
     ) -> Poll<Option<Self::Item>>{
         // Poll the connection
+        println!("Polling the connection");
         //Poll::Pending
-        Poll::Ready(Some(Ok(IO::new(self.receiverCS_ref.clone()))))
-    }
+        //Poll::Ready(Some(Ok(IO::new(self.receiverCS.clone()))))
+        /*
+        if(self.n == 0){
+            self.n = self.n + 1;
+            //Poll::Ready(Some(Ok(IO::new(self.receiverCS_ref.clone()))))
+            Poll::Ready(Some(Ok(IO::new(self.receiverCS.clone(), self.senderSC.clone()))))
+        }else{
+            Poll::Ready(None)
+        }  */
+        
+        let mut shared_state = self.shared_state.lock().unwrap();
+        println!("the task is up !");
+        if(shared_state.completed){
+            println!("Data is available");
+            shared_state.completed = false;
+            Poll::Ready(Some(Ok(IO::new(self.receiverCS.clone(), self.senderSC.clone()))))
+        } else {
+            println!("must wait");
+            shared_state.waker = Some(cx.waker().clone());
+            Poll::Pending
+        }
+        
 
+        
+    }
 }
 
 pub struct IO {
     //define attributes for the IO
-    receiverCS_ref:  Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
+    //receiverCS_ref:  Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
+    receiverCS:  flume::Receiver<Vec<u8>>,
+    senderSC: flume::Sender<Vec<u8>>,
+}
+
+struct SharedState {
+    completed: bool,
+    waker: Option<Waker>,
 }
 
 impl IO {
+    /* 
     pub fn new(receiverCS_ref: Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,) -> Self {
+        println!("Creating new IO");
         IO {receiverCS_ref}
+    }*/
+    pub fn new (receiverCS: flume::Receiver<Vec<u8>>, senderSC: flume::Sender<Vec<u8>>) -> Self {
+        println!("Creating new IO");
+        println!("ReceiverCS is disconnected ? {}", receiverCS.is_disconnected());
+/* 
+        let shared_read_state = Arc::new(Mutex::new(SharedState {
+            completed: false,
+            waker: None,
+        }));
+ 
+        let one_second = Duration::new(1, 0);
+
+        let thread_shared_read_state = shared_read_state.clone();
+        let receiver = receiverCS.clone();
+        
+        thread::spawn(move || {
+            loop {
+                //thread::sleep(one_second);
+                let mut shared_state = thread_shared_read_state.lock().unwrap();
+                // Signal that the timer has completed and wake up the last
+                // task on which the future was polled, if one exists.
+                if(!receiver.is_empty()){
+                    println!("Data is available");
+                    shared_state.completed = true;
+                    
+                    if let Some(waker) = shared_state.waker.take() {
+                        println!("Waking up the task");
+                        waker.wake_by_ref()
+                       
+                    }
+                    break;
+                }
+                drop(shared_state);
+            }
+        });  */
+
+        IO {receiverCS, senderSC}
+        
     }
 }
 
 impl AsyncRead for IO {
     fn poll_read(
         self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
         buf: &mut tokio::io::ReadBuf
     ) -> Poll<Result<(), std::io::Error>> {
         // READ PACKETS
+        println!("Polling the read");  
+        /* 
+        let msg = self.receiverCS.try_recv();
+        match msg {
+            Ok(data) => {
+                println!("Received data: {:?}", data);
+                buf.put_slice(&data);
+                Poll::Ready(Ok(()))
+            },
+            Err(e) => {
+                println!("must wait");
+                //create threads that will wake up the task when there is something to read
+                let receiver = self.receiverCS.clone();
+                let waker = cx.waker().clone();
+                thread::spawn(move || {
+                    loop {
+                        //thread::sleep(one_second);
+                        // Signal that the timer has completed and wake up the last
+                        // task on which the future was polled, if one exists.
+                        if(!receiver.is_empty()){
+                            println!("Data is available");
+                            waker.wake();            
+                            break;
+                        }
+                    }
+                });  
+
+                Poll::Pending
+            }
+        }
+
+        */
+
+        /*
+        let future = self.receiverCS.recv_async();
+        let mapped = future.map(|data| {
+            println!("Received data: {:?}", data);
+            buf.put_slice(&data);
+            Ok(())
+        });
+        mapped.map_err(|e| {
+            println!("Error receiving data: {:?}", e);
+            std::io::Error::new(std::io::ErrorKind::Other, e)
+        }).poll(cx) */
+
+        /* 
+        let mut shared_state = self.shared_read_state.lock().unwrap();
+        println!("the task is up !");
+        println!("Data is available ? {}", shared_state.completed);
+        if(shared_state.completed){
+            println!("Data is available");
+            let msg = self.receiverCS.try_recv();
+            match msg {
+                Ok(data) => {
+                    println!("Received data: {:?}", data);
+                    buf.put_slice(&data);
+                    drop(shared_state);
+                    Poll::Ready(Ok(()))
+                },
+                Err(e) => {
+                    //println!("Error receiving data: {:?}", e);
+                    println!("must wait");
+                    shared_state.waker = Some(cx.waker().clone());
+                    cx.waker().wake_by_ref();
+                    drop(shared_state);
+                    Poll::Pending
+                }
+            }
+    
+        } else {
+            println!("must wait");
+            shared_state.waker = Some(cx.waker().clone());
+            cx.waker().wake_by_ref();
+            drop(shared_state);
+            Poll::Pending
+        } */
         
-        let data = self.receiverCS_ref.lock().unwrap().recv().unwrap();
-        println!("Received data: {:?}", data);
-        buf.put_slice(&data);
-        //Poll::Ready(Ok(()))
-        Poll::Pending
+        
+
+        
+        // let five_seconds = Duration::new(5, 0);
+        //let msg = self.receiverCS.recv_timeout(five_seconds);
+        let msg = self.receiverCS.try_recv();
+        match msg {
+            Ok(data) => {
+                println!("Received data: {:?}", data);
+                buf.put_slice(&data);
+                Poll::Ready(Ok(()))
+            },
+            Err(e) => {
+                println!("Error receiving data: {:?}", e);
+                //Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, e)))
+                Poll::Ready(Ok(()))
+            }
+        } 
+
+       
+                
+        
     }
 }
 
@@ -496,10 +748,16 @@ impl AsyncWrite for IO {
     fn poll_write(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
-        _buf: &[u8]
+        buf: &[u8]
     ) -> Poll<Result<usize, std::io::Error>> {
         //Write
-        Poll::Pending
+        //let data = self.receiverCS_ref.lock().unwrap().recv().unwrap();
+        //println!("Received data: {:?}", data);
+        //buf.put_slice(&data);
+        println!("Polling the write");
+        println!("Wants to write {:?}", buf);
+        self.senderSC.send(buf.to_vec()).unwrap();
+        Poll::Ready(Ok(buf.len()))
     }
 
     fn poll_flush(
@@ -507,6 +765,8 @@ impl AsyncWrite for IO {
         _cx: &mut Context<'_>
     ) -> Poll<Result<(), std::io::Error>> {
         // Not needed
+        println!("Polling the flush");
+        //Poll::Pending
         Poll::Ready(Ok(()))
     }
 
@@ -515,6 +775,9 @@ impl AsyncWrite for IO {
         _cx: &mut Context<'_>
     ) -> Poll<Result<(), std::io::Error>> {
         // Close the gracefully the connection
+        //
+        println!("Polling the shutdown");   
+        //Poll::Pending
         Poll::Ready(Ok(()))
     }
 }
@@ -593,8 +856,8 @@ fn validate_token<'a>(
 
 /// Handles incoming HTTP/3 requests.
 fn handle_request(
-    client: &mut Client, stream_id: u64, headers: &[quiche::h3::Header],
-    root: &str,
+    client: &mut Client, stream_id: u64, headers: &[quiche::h3::Header], 
+    root: &str,receiverSC: flume::Receiver<Vec<u8>>,
 ) {
     let conn = &mut client.conn;
     let http3_conn = &mut client.http3_conn.as_mut().unwrap();
@@ -614,7 +877,7 @@ fn handle_request(
         .unwrap();
     */
 
-    let (headers, body) = build_response(root, headers);
+    let (headers, body) = build_response(root, headers, receiverSC.clone());
 
     match http3_conn.send_response(conn, stream_id, &headers, false) {
         Ok(v) => v,
@@ -660,7 +923,7 @@ fn handle_request(
 
 /// Builds an HTTP/3 response given a request.
 fn build_response(
-    root: &str, request: &[quiche::h3::Header],
+    root: &str, request: &[quiche::h3::Header], receiverSC: flume::Receiver<Vec<u8>>
 ) -> (Vec<quiche::h3::Header>, Vec<u8>) {
     let mut file_path = std::path::PathBuf::from(root);
     let mut path = std::path::Path::new("");
@@ -682,6 +945,7 @@ fn build_response(
 
     let (status, body) = match method {
         Some(b"GET") => {
+            /*  
             for c in path.components() {
                 if let std::path::Component::Normal(v) = c {
                     file_path.push(v)
@@ -692,6 +956,13 @@ fn build_response(
                 Ok(data) => (200, data),
 
                 Err(_) => (404, b"Not Found!".to_vec()),
+            } */
+            match receiverSC.recv() {
+                Ok(msg) => {println!("responding to {:?}", msg); 
+                        (200, msg)
+                    }
+
+                Err(_) => {println!("breaking this loop"); (404, b"Not Found!".to_vec())}
             }
         },
 

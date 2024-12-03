@@ -30,6 +30,7 @@ octets = { version = "0.3", path = "../octets" }
 ring = "0.17"
 libc = "0.2"
 nix = { version = "0.27", features = ["net", "socket", "uio"] }
+flume = "0.11.1"
 
 
 [build-dependencies]
