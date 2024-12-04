@@ -34,12 +34,16 @@ impl Greeter for MyGreeter {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr : String = "127.0.0.1:4433".parse().unwrap();
-    let greeter = MyGreeter::default();
+    let greeter = MyGreeter::default(); //Define the gRPC service
 
     println!("GreeterServer listening on {}", addr);
 
+    //Create a Stream of Connections (QUIC)
     let quic_listener = QuicStream::new().expect("Error in the quic stream");
 
+    // Start the gRPC server (tonic::transport::server::Router)
+    // This server runs the Greeter service
+    // The server listens on the QUIC stream
     Server::builder()
         .add_service(GreeterServer::new(greeter))
         .serve_with_incoming(quic_listener)

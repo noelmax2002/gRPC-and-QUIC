@@ -47,25 +47,26 @@ struct Client {
 
 type ClientMap = HashMap<quiche::ConnectionId<'static>, Client>;
 
-
+/*
+    QuicStream is an async stream representings a streams of QUIC connections.
+*/
 pub struct QuicStream {
-   //receiverCS_ref: Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
-   receiverCS: flume::Receiver<Vec<u8>>,
+   receiverCS: Arc<Mutex<tokio::sync::mpsc::Receiver<Vec<u8>>>>,
    senderSC: flume::Sender<Vec<u8>>,
    n: i32,
-   shared_state: Arc<Mutex<SharedState>>,
+   //shared_state: Arc<Mutex<SharedState>>,
 }
 
 impl QuicStream {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-       //std::env::set_var("RUST_BACKTRACE", "1");
         
        //let (senderCS, receiverCS) = std::sync::mpsc::channel::<Vec<u8>>(); //channel to send data from client to server
-       let (senderCS, receiverCS) = flume::unbounded::<Vec<u8>>();
-       let (senderSC, receiverSC) = flume::unbounded::<Vec<u8>>(); 
-       //let receiverCS_ref = Arc::new(Mutex::new(receiverCS));
+       //let (senderCS, receiverCS) = flume::unbounded::<Vec<u8>>();
+       let (senderCS, receiverCS) = tokio::sync::mpsc::channel::<Vec<u8>>(100); //Channel from Quiche Thread to the IO thread
+       let (senderSC, receiverSC) = flume::unbounded::<Vec<u8>>();  // Channel from IO thread to the Quiche Thread
+       let receiverCS_ref = Arc::new(Mutex::new(receiverCS));
 
-       //initialize the connection
+       // Threads that handle the QUIC connection and send HTTP/3 responses to requests.
        task::spawn_blocking(move || {
         let mut buf = [0; 65535];
         let mut out = [0; MAX_DATAGRAM_SIZE];
@@ -375,7 +376,7 @@ impl QuicStream {
                                     //println!("Payload: {:?}", &body[..read]);
                                     let data: Vec<u8> = body[..read].to_vec();
                                     //println!("Disconnected ? {}", senderCS.is_disconnected());
-                                    let result = match senderCS.send(data) {
+                                    let result = match senderCS.try_send(data) {
                                         Ok(_) => {
                                             //println!("Data sent successfully");
                                         },
@@ -387,6 +388,32 @@ impl QuicStream {
 
                                     //println!("Result a: {:?}", result.err().into_iter());
                                 }
+
+                                loop {
+                                    println!("Trying to send data");
+                                    match receiverSC.try_recv() {
+                                        Ok(msg) => {println!("Sending response : {:?}", msg); 
+                                                
+                                                println!("Data size: {} bytes", size_of_val(&*msg));
+                                        
+                                                let req = vec![
+                                                    quiche::h3::Header::new(b":status", b"200"),
+                                                    quiche::h3::Header::new(b"server", b"quiche"),
+                                                    quiche::h3::Header::new(
+                                                        b"content-length",
+                                                        msg.len().to_string().as_bytes(),
+                                                    ),
+                                                ];
+                                                println!("sending HTTP request {:?}", req);
+                                                http3_conn.send_response(&mut client.conn, stream_id, &req, false) ;
+                                                http3_conn.send_body(&mut client.conn, stream_id, &msg, true);
+                                            }
+                        
+                                        Err(_) => {println!("nothing to send"); break;}
+                                    }
+                                } 
+
+
                             },
     
                             Ok((_stream_id, quiche::h3::Event::Finished)) => (),
@@ -401,7 +428,7 @@ impl QuicStream {
                             Ok((_goaway_id, quiche::h3::Event::GoAway)) => (),
     
                             Err(quiche::h3::Error::Done) => {
-                                println!("{} done reading", client.conn.trace_id());
+                                //println!("{} done reading", client.conn.trace_id());
                                 break;
                             },
     
@@ -419,7 +446,7 @@ impl QuicStream {
                                               
           
                     }
-
+                    /* 
                     loop {
                         let http3_conn = client.http3_conn.as_mut().unwrap();
                         println!("Trying to send data");
@@ -443,7 +470,7 @@ impl QuicStream {
             
                             Err(_) => {println!("nothing to send"); break;}
                         }
-                    } 
+                    } */
                 }
             }
     
@@ -456,7 +483,7 @@ impl QuicStream {
                         Ok(v) => v,
     
                         Err(quiche::Error::Done) => {
-                            println!("{} done writing", client.conn.trace_id());
+                            //println!("{} done writing", client.conn.trace_id());
                             break;
                         },
     
@@ -501,9 +528,10 @@ impl QuicStream {
         });
     
     
-        
+        /*
         let shared_state = Arc::new(Mutex::new(SharedState {
             completed: false,
+            working: false,
             waker: None,
         }));
     
@@ -519,11 +547,11 @@ impl QuicStream {
                 let mut shared_state = thread_shared_state.lock().unwrap();
                 // Signal that the timer has completed and wake up the last
                 // task on which the future was polled, if one exists.
-                if(!receiver.is_disconnected() && !receiver.is_empty() && !shared_state.completed){
+                if(!receiver.is_disconnected() && !receiver.is_empty() && !shared_state.completed && !shared_state.working){
                     println!("Data is available !");
                     shared_state.completed = true;
+                    shared_state.working = true;
                 
-                    
                     if let Some(waker) = shared_state.waker.take() {
                         println!("Waking up the task !");
                         waker.wake_by_ref()
@@ -531,73 +559,81 @@ impl QuicStream {
                     }
                 }
             }
-        });  
+        });   */
 
         
         //Ok(QuicStream {receiverCS_ref, n: 0})
-        Ok(QuicStream {receiverCS: receiverCS.clone(), senderSC: senderSC.clone(),n: 0, shared_state})
+        Ok(QuicStream {receiverCS: receiverCS_ref.clone(), senderSC: senderSC.clone(),n: 0})
     }
 }
 
+/*
+    The Stream trait is implemented for QuicStream.
+    This trait is needed the tonic::transport::server::Route::serve_with_incoming() function
+*/
 impl Stream for QuicStream{
     type Item = Result<IO, Error>;
 
     // Required method
+    /*
+        Returns the next value in the stream.
+        This functions returns a Future containing a IO object representing a new QUIC Connection.
+        TODO: ADD the handling of multiple QUIC Connections.
+        --> Currently, only returns one connection and then Poll:Pending
+    */
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>
     ) -> Poll<Option<Self::Item>>{
-        // Poll the connection
-        println!("Polling the connection");
-        //Poll::Pending
-        //Poll::Ready(Some(Ok(IO::new(self.receiverCS.clone()))))
-        /*
+        println!("Polling a new connection");
         if(self.n == 0){
             self.n = self.n + 1;
             //Poll::Ready(Some(Ok(IO::new(self.receiverCS_ref.clone()))))
             Poll::Ready(Some(Ok(IO::new(self.receiverCS.clone(), self.senderSC.clone()))))
         }else{
             Poll::Ready(None)
-        }  */
-        
+        }  
+        /*
         let mut shared_state = self.shared_state.lock().unwrap();
         println!("the task is up !");
         if(shared_state.completed){
             println!("Data is available");
             shared_state.completed = false;
-            Poll::Ready(Some(Ok(IO::new(self.receiverCS.clone(), self.senderSC.clone()))))
+            Poll::Ready(Some(Ok(IO::new(self.receiverCS.clone(), self.senderSC.clone(), self.shared_state.clone()))))
         } else {
             println!("must wait");
             shared_state.waker = Some(cx.waker().clone());
             Poll::Pending
-        }
+        } */
         
 
         
     }
 }
 
+/*
+    This structure represents a QUIC Connection.
+    It implements the AsyncRead and AsyncWrite traits which allows to read and write data from/to the HTTP/3 traffic.
+*/
 pub struct IO {
     //define attributes for the IO
     //receiverCS_ref:  Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
-    receiverCS:  flume::Receiver<Vec<u8>>,
+    receiverCS:  Arc<Mutex<tokio::sync::mpsc::Receiver<Vec<u8>>>>,
     senderSC: flume::Sender<Vec<u8>>,
 }
 
+/*
+    Structure used to share the state with a thread that will wake up a task.
+*/
 struct SharedState {
     completed: bool,
     waker: Option<Waker>,
 }
 
 impl IO {
-    /* 
-    pub fn new(receiverCS_ref: Arc<Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,) -> Self {
+    pub fn new (receiverCS: Arc<Mutex<tokio::sync::mpsc::Receiver<Vec<u8>>>>, senderSC: flume::Sender<Vec<u8>>,) -> Self {
         println!("Creating new IO");
-        IO {receiverCS_ref}
-    }*/
-    pub fn new (receiverCS: flume::Receiver<Vec<u8>>, senderSC: flume::Sender<Vec<u8>>) -> Self {
-        println!("Creating new IO");
-        println!("ReceiverCS is disconnected ? {}", receiverCS.is_disconnected());
+        //println!("ReceiverCS is disconnected ? {}", receiverCS.is_disconnected());
 /* 
         let shared_read_state = Arc::new(Mutex::new(SharedState {
             completed: false,
@@ -636,6 +672,11 @@ impl IO {
 }
 
 impl AsyncRead for IO {
+    /*
+        Puts data receive from a HTTP/3 requests into a buffer.
+        Returns Poll:Pending if there is currently no data to read.
+        PROBLEM: The task is never woken up when there is data to read.
+    */
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -644,7 +685,19 @@ impl AsyncRead for IO {
         // READ PACKETS
         println!("Polling the read");  
         /* 
-        let msg = self.receiverCS.try_recv();
+        // Poll the receiver and put data into the buffer -> directly modifies the result in the Poll
+        let pol = self.receiverCS.lock().unwrap().poll_recv(cx);
+        pol.map(|msg| {
+            let data = msg.unwrap();
+            println!("Received data: {:?}", data);
+            buf.put_slice(&data);
+            Ok(())
+        })
+        */
+
+        
+        // Try to receive data. If nothing is available, return Poll::Pending and spawn a thread that will wake up the task when there is data to read.
+        let msg = self.receiverCS.lock().unwrap().try_recv();
         match msg {
             Ok(data) => {
                 println!("Received data: {:?}", data);
@@ -656,12 +709,13 @@ impl AsyncRead for IO {
                 //create threads that will wake up the task when there is something to read
                 let receiver = self.receiverCS.clone();
                 let waker = cx.waker().clone();
+                let timer = Duration::from_millis(25);
                 thread::spawn(move || {
                     loop {
-                        //thread::sleep(one_second);
+                        thread::sleep(timer);
                         // Signal that the timer has completed and wake up the last
                         // task on which the future was polled, if one exists.
-                        if(!receiver.is_empty()){
+                        if(!receiver.lock().unwrap().is_empty()){
                             println!("Data is available");
                             waker.wake();            
                             break;
@@ -671,9 +725,23 @@ impl AsyncRead for IO {
 
                 Poll::Pending
             }
-        }
+        } 
 
-        */
+        /* 
+        let msg = self.receiverCS.recv();
+        match msg {
+            Ok(data) => {
+                println!("Received data: {:?}", data);
+                buf.put_slice(&data);
+                Poll::Ready(Ok(()))
+            },
+            Err(e) => {
+                println!("Error receiving data: {:?}", e);
+                Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, e)))
+            }
+        }*/
+        
+        
 
         /*
         let future = self.receiverCS.recv_async();
@@ -721,7 +789,9 @@ impl AsyncRead for IO {
         
         
 
-        
+        /* 
+        //Dummy implementation that waits 5 seconds and try to read data.
+        //If there is nothing returns that all the reading is done.
         // let five_seconds = Duration::new(5, 0);
         //let msg = self.receiverCS.recv_timeout(five_seconds);
         let msg = self.receiverCS.try_recv();
@@ -734,9 +804,10 @@ impl AsyncRead for IO {
             Err(e) => {
                 println!("Error receiving data: {:?}", e);
                 //Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, e)))
+                self.shared_state.lock().unwrap().working = false;
                 Poll::Ready(Ok(()))
             }
-        } 
+        } */
 
        
                 
@@ -745,6 +816,10 @@ impl AsyncRead for IO {
 }
 
 impl AsyncWrite for IO {
+
+    /*
+       Puts data in the channel to be sent by the QUIC Thread.
+    */
     fn poll_write(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
@@ -760,6 +835,9 @@ impl AsyncWrite for IO {
         Poll::Ready(Ok(buf.len()))
     }
 
+    /*
+        Attempts to flush the object, ensuring that any buffered data reach their destination.
+     */
     fn poll_flush(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>
@@ -770,6 +848,10 @@ impl AsyncWrite for IO {
         Poll::Ready(Ok(()))
     }
 
+
+    /*       
+       Initiates or attempts to shut down this writer, returning success when the I/O connection has completely shut down.
+     */
     fn poll_shutdown(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>
@@ -795,7 +877,7 @@ pub struct MyConnectInfo {
     // Metadata about the connection
 }
 
-//functions coming from quiche example
+// --------------- Functions coming from quiche example --> Not currently used. -------------------
 
 
 /// Generate a stateless retry token.

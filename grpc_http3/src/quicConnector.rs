@@ -322,7 +322,7 @@ impl QuicConnector {
                                     req_start.elapsed()
                                 );
         
-                                conn.close(true, 0x100, b"kthxbye").unwrap();
+                                //conn.close(true, 0x100, b"kthxbye").unwrap();
                             },
         
                             Ok((_stream_id, quiche::h3::Event::Reset(e))) => {
@@ -331,7 +331,7 @@ impl QuicConnector {
                                     e
                                 );
         
-                                conn.close(true, 0x100, b"kthxbye").unwrap();
+                                //conn.close(true, 0x100, b"kthxbye").unwrap();
                             },
         
                             Ok((_, quiche::h3::Event::PriorityUpdate)) => unreachable!(),
@@ -367,7 +367,7 @@ impl QuicConnector {
                         Err(e) => {
                             error!("send failed: {:?}", e);
         
-                            conn.close(false, 0x1, b"fail").ok();
+                           //conn.close(false, 0x1, b"fail").ok();
                             break;
                         },
                     };
@@ -449,13 +449,13 @@ impl Read for HTTP3Connection {
     fn poll_read(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
-        buf: ReadBufCursor<'_>,
+        mut buf: ReadBufCursor<'_>,
     ) -> Poll<Result<(), Error>> {
         // READ PACKETS
         //Poll::Pending
         println!("Pending read");
-        /*
-        let five_seconds = Duration::new(5, 0);
+        
+        let five_seconds = Duration::new(1, 0);
         let msg = self.receiver.recv_timeout(five_seconds);
         match msg {
             Ok(data) => {
@@ -468,8 +468,8 @@ impl Read for HTTP3Connection {
                 //Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::Other, e)))
                 Poll::Pending
             }
-        } */
-       Poll::Pending
+        } 
+       //Poll::Pending
     }
 }
 
