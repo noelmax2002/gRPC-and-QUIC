@@ -31,6 +31,9 @@ ring = "0.17"
 libc = "0.2"
 nix = { version = "0.27", features = ["net", "socket", "uio"] }
 flume = "0.11.1"
+tokio-stream = "0.1.17" 
+tower = "0.5.1"
+hyper-util = "0.1.10"
 
 
 [build-dependencies]

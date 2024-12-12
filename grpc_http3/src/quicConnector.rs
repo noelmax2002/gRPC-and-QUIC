@@ -18,6 +18,7 @@ use quiche::h3::NameValue;
 //use std::sync::mpsc::{Sender,Receiver};
 use flume::{Sender, Receiver};
 use tokio::io::ErrorKind;
+
 //use future_bool::FutureBool;
 
 
@@ -455,7 +456,7 @@ impl Read for HTTP3Connection {
         //Poll::Pending
         println!("Pending read");
         
-        let five_seconds = Duration::new(1, 0);
+        let five_seconds = Duration::new(5, 0);
         let msg = self.receiver.recv_timeout(five_seconds);
         match msg {
             Ok(data) => {
