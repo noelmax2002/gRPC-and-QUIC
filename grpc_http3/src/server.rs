@@ -15,6 +15,7 @@ use quiche;
 use ring::rand::*;
 use quiche::h3::NameValue;
 use log::{trace,info,warn,error};
+use tokio::time::{sleep,Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -128,6 +129,16 @@ impl Io {
 
         let local_addr = socket.local_addr().unwrap();
 
+         
+        let req = vec![
+        quiche::h3::Header::new(b":method", b"PUSH"),
+        ];
+
+        let resp = vec![
+                    quiche::h3::Header::new(b":status", 200.to_string().as_bytes()),
+                    quiche::h3::Header::new(b"server", b"quiche"),
+                ];
+
         loop {
             // Find the shorter timeout from all the active connections.
             //
@@ -158,6 +169,12 @@ impl Io {
                         // loop.
                         if e.kind() == std::io::ErrorKind::WouldBlock {
                             println!("recv() would block");
+                            break 'read;
+                        }
+
+                        if e.kind() == std::io::ErrorKind::ConnectionReset {
+                            println!("The connection is reset");
+                            
                             break 'read;
                         }
 
@@ -360,28 +377,31 @@ impl Io {
             
                             // Communication with IO.
                             let (tx, rx) = mpsc::channel(1000);
+
+                            println!("Creating new client with id {:?}", client.id);
             
                             let mut new_client = Client {
                                 stream: to_client,
                                 to_io: self.tx.clone(),
                                 from_io: rx,
-                                id: conn_id.clone(),
+                                id: client.id.clone(),
                             };
             
                             // Let the client run on its own.
                             tokio::spawn(async move {
                                 new_client.run().await.unwrap();
                             });
+                            //sleep(Duration::from_millis(10)).await;
             
                             // Notify gRPC of the new client.
                             self.to_grpc.send(Ok(from_client))?;
             
-                            self.clients_tx.insert(conn_id.clone(), tx);
-                            self.clients_tx.get_mut(&conn_id.clone()).unwrap()
+                            self.clients_tx.insert(client.id.clone(), tx);
+                            self.clients_tx.get_mut(&client.id.clone()).unwrap()
                         }
                     };
             
-                    client_tx.send(buf[..len].to_vec()).await?;
+                    //client_tx.send(buf[..len].to_vec()).await?;
 
                 }
 
@@ -406,27 +426,28 @@ impl Io {
                             Ok((stream_id, quiche::h3::Event::Data)) => {
                                 while let Ok(read) = http3_conn.recv_body(&mut client.conn, stream_id, &mut buf) {
                                     println!(
-                                        "got {} bytes of response data on stream {}",
+                                        "got {} bytes of data on stream {}",
                                         read, stream_id
                                     );
 
-                                    print!("{}", unsafe {
-                                        std::str::from_utf8_unchecked(&buf[..read])
-                                    });
-
                                     //send data to gRPC
+                                    println!("Client Id : {:?}", client.id);
+                                    println!("Clients map empty : {:?}", self.clients_tx.keys());
                                     let client_tx = match self.clients_tx.get(&client.id) {
                                         Some(v) => v,
                                         None => {
                                            //error
+                                           println!("Client send data without proper http3 connection !");
                                            error!("Client send data without proper http3 connection !");
                                            continue;
                                         }
                                     };
-                            
+                                    println!("---Sending data to gRPC");
                                     client_tx.send(buf[..read].to_vec()).await?;
-
+                                    sleep(Duration::from_millis(10)).await;
+                                    println!("---Data sent to gRPC");
                                 }
+                                //client.conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0).unwrap();
                             },
 
                             Ok((_stream_id, quiche::h3::Event::Finished)) => (),
@@ -459,7 +480,71 @@ impl Io {
             }
 
             // Send gRPC message 
+            loop {
+                let (data, id) = match self.rx.try_recv(){
+                    Ok(v) => v,
+                    Err(mpsc::error::TryRecvError::Empty) => {
+                        println!("No more data to send");
+                        break;
+                    },
+                    Err(e) => {
+                        println!("Channel closed");
+                        break;
+                    }
+                    
+                };
 
+                println!("sending HTTP response {:?}", resp);
+                println!("{:?}", data);
+                let client = match clients.get_mut(&id) {
+                    Some(v) => v,
+                    None => {
+                       //error
+                       println!("Client not found in the client array !");      
+                       continue;
+                    }
+                };
+                /* 
+                let h3_conn = client.http3_conn.as_mut().unwrap();
+                let stream_id = h3_conn.send_request(&mut client.conn, &resp, false).unwrap();
+                h3_conn.send_body(&mut client.conn, stream_id, &data, true).unwrap();*/
+
+                let stream_id = 0;
+                let h3_conn = client.http3_conn.as_mut().unwrap();
+                let mut conn = &mut client.conn;
+                match h3_conn.send_response(conn, stream_id, &resp, false) {
+                    Ok(v) => v,
+            
+                    Err(quiche::h3::Error::StreamBlocked) => {
+                        let response = PartialResponse {
+                            headers: Some(resp.clone()),
+                            body: data,
+                            written: 0,
+                        };
+            
+                        client.partial_responses.insert(stream_id, response);
+                        continue;
+                    },
+            
+                    Err(e) => {
+                        error!("{} stream send failed {:?}", conn.trace_id(), e);
+                        continue;
+                    },
+                }
+            
+                let written = match h3_conn.send_body(conn, stream_id, &data, false) {
+                    Ok(v) => v,
+            
+                    Err(quiche::h3::Error::Done) => 0,
+            
+                    Err(e) => {
+                        error!("{} stream send failed {:?}", conn.trace_id(), e);
+                        continue;
+                    },
+                };
+               
+            }
+            
 
 
             // Generate outgoing QUIC packets for all active connections and send
@@ -583,6 +668,7 @@ impl Io {
         let resp = client.partial_responses.get_mut(&stream_id).unwrap();
 
         if let Some(ref headers) = resp.headers {
+            println!("{} stream send response {:?}", conn.trace_id(), headers);
             match http3_conn.send_response(conn, stream_id, headers, false) {
                 Ok(_) => (),
 
@@ -644,6 +730,7 @@ struct Client {
 impl Client {
     async fn run(&mut self) -> Result<()> {
         let mut buf = [0u8; 1500];
+        println!("------------Client started");
         loop {
             tokio::select! {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
@@ -653,6 +740,7 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
+        println!("Client got a message from IO: {:?}", msg);
         self.stream.write(&msg).await?;
         
         Ok(())

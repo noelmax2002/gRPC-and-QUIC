@@ -67,6 +67,8 @@ async fn main() -> Result<()> {
 
     let response = client.say_hello(request).await?;
 
+    
+
     println!("RESPONSE={:?}", response);
 
     Ok(())
@@ -247,26 +249,25 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
 
                 //divide data if greater than MAX_DATAGRAM_SIZE
                 println!("Data size: {:?}", data.len());
-                /*
-                let accepted_size = MAX_DATAGRAM_SIZE/8 - req.len();
-                while data.len() > MAX_DATAGRAM_SIZE/8 {
+                
+                /* 
+                let mut data = data;
+                let accepted_size = MAX_DATAGRAM_SIZE/8 - 167;
+                println!("Accepted size: {:?}", accepted_size);
+                while data.len() > accepted_size {
                     let (first, second) = data.split_at(accepted_size);
                     println!("sending HTTP request {:?}", req);
                     println!("{:?}", first);
-                    h3_conn.send_request(&mut conn, &req, true).unwrap();
-                    h3_conn.send_body(&mut conn, 0, &first, false).unwrap();
+                    let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
+                    h3_conn.send_body(&mut conn, stream_id, &first, false).unwrap();
                     data = second.to_vec();
                 } */
                 
+                
                 println!("sending HTTP request {:?}", req);
                 println!("{:?}", data);
-                h3_conn.send_request(&mut conn, &req, true).unwrap();
-                match h3_conn.send_body(&mut conn, 0, &data, true) {
-                    Ok(_) => println!("Data sent"),
-                    Err(e) => println!("Error sending data: {:?}", e),
-                }
-                
-
+                let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
+                h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
             }
                 
 
@@ -280,7 +281,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
             }
             */
         }
-        /* 
+        
         if let Some(http3_conn) = &mut http3_conn {
             // Process HTTP/3 events.
             loop {
@@ -302,9 +303,10 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                                 read, stream_id
                             );
 
-                            print!("{}", unsafe {
-                                std::str::from_utf8_unchecked(&buf[..read])
-                            });
+                            println!("{:?}", &buf[..read]);
+
+                            to_client.send(buf[..read].to_vec()).await?;
+                            sleep(Duration::from_millis(10)).await;
                         }
                     },
 
@@ -344,7 +346,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                 }
             }
         }
-        */
+        
         // Generate outgoing QUIC packets and send them on the UDP socket, until
         // quiche reports that there are no more packets to be sent.
         loop {
@@ -403,6 +405,7 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
+        println!("Received IO message: {:?}", msg);
         self.stream.write(&msg).await?;
         
         Ok(())
