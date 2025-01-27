@@ -13,9 +13,8 @@ use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task;
 use quiche;
 use ring::rand::*;
-use quiche::h3::NameValue;
-use log::{trace,info,warn,error,debug};
-use tokio::time::{sleep,Duration};
+use log::{info,error,debug};
+//use tokio::time::{sleep,Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -128,11 +127,6 @@ impl Io {
         let mut clients = ClientMap::new();
 
         let local_addr = socket.local_addr().unwrap();
-
-         
-        let req = vec![
-        quiche::h3::Header::new(b":method", b"PUSH"),
-        ];
 
         let resp = vec![
                     quiche::h3::Header::new(b":status", 200.to_string().as_bytes()),
@@ -367,7 +361,7 @@ impl Io {
                     );
 
                     // Create a new Client to handle the connection to gRPC.
-                    let client_tx = match self.clients_tx.get(&conn_id) {
+                    match self.clients_tx.get(&conn_id) {
                         Some(v) => v,
                         None => {
                             // Communication with gRPC.
@@ -437,7 +431,7 @@ impl Io {
                                         }
                                     };
                                     client_tx.send(buf[..read].to_vec()).await?;
-                                    sleep(Duration::from_millis(10)).await;
+                                    //sleep(Duration::from_millis(1)).await;
                                 }
                                 //client.conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0).unwrap();
                             },
@@ -480,7 +474,7 @@ impl Io {
                         break;
                     },
                     Err(e) => {
-                        debug!("Channel closed");
+                        debug!("Channel closed: {:?}", e);
                         break;
                     }
                     
@@ -498,7 +492,7 @@ impl Io {
                 };
                 let stream_id = 0;
                 let h3_conn = client.http3_conn.as_mut().unwrap();
-                let mut conn = &mut client.conn;
+                let conn = &mut client.conn;
                 match h3_conn.send_response(conn, stream_id, &resp, false) {
                     Ok(v) => v,
             
@@ -519,7 +513,7 @@ impl Io {
                     },
                 }
             
-                let written = match h3_conn.send_body(conn, stream_id, &data, false) {
+                match h3_conn.send_body(conn, stream_id, &data, false) {
                     Ok(v) => v,
             
                     Err(quiche::h3::Error::Done) => 0,
@@ -693,18 +687,6 @@ impl Io {
             client.partial_responses.remove(&stream_id);
         }
     }
-
-    pub fn hdrs_to_strings(hdrs: &[quiche::h3::Header]) -> Vec<(String, String)> {
-        hdrs.iter()
-            .map(|h| {
-                let name = String::from_utf8_lossy(h.name()).to_string();
-                let value = String::from_utf8_lossy(h.value()).to_string();
-
-                (name, value)
-            })
-            .collect()
-    }   
-
 }
 
 struct Client {

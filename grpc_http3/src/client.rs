@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
             let (client, server) = tokio::io::duplex(12000);
             task::spawn(async move {
                 let (to_client, from_io) = mpsc::channel(1000);
-                let (to_io, mut from_client) = mpsc::channel(1000);
+                let (to_io, from_client) = mpsc::channel(1000);
 
                 let mut new_client = Client {
                     stream: client,
@@ -169,8 +169,6 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
     ];
 
     let req_start = std::time::Instant::now();
-
-    let mut req_sent = false;
 
     loop {
         poll.poll(&mut events, conn.timeout()).unwrap();
