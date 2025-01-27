@@ -10,7 +10,7 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc;
 use tokio::task;
-use log::{info, error};
+use log::{info, error, debug};
 use tokio::time::Duration;
 use tokio::time::sleep;
 
@@ -42,10 +42,8 @@ async fn main() -> Result<()> {
                     from_io: from_io,
                 };
             
-                println!("---------Client created");
                 // Let the client run on its own.
                 tokio::spawn(async move {
-                    println!("---------Client spawned");
                     new_client.run().await.unwrap();
                 });
 
@@ -58,18 +56,30 @@ async fn main() -> Result<()> {
     })).await?;
 
     let mut client = GreeterClient::new(channel);
+    let mut client2 = client.clone();
      
 
     let request = tonic::Request::new(HelloRequest {
         name: "Maxime".into(),
     });
-   
 
-    let response = client.say_hello(request).await?;
+    let request2 = tonic::Request::new(HelloRequest {
+        name: "Guillaume".into(),
+    });
+   
+    let join_handle: task::JoinHandle<()> = tokio::spawn(async move {
+        let response = client.say_hello(request).await.unwrap();
+        println!("RESPONSE={:?}", response);
+    }); 
 
     
+    let join_handle2: task::JoinHandle<()> = tokio::spawn(async move {
+        let response = client2.say_hello(request2).await.unwrap();
+        println!("RESPONSE={:?}", response);
+    }); 
 
-    println!("RESPONSE={:?}", response);
+    join_handle.await?;
+    join_handle2.await?;
 
     Ok(())
 }
@@ -104,7 +114,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
         .set_application_protos(quiche::h3::APPLICATION_PROTOCOL)
         .unwrap();
 
-    config.set_max_idle_timeout(500000);
+    config.set_max_idle_timeout(5000);
     config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
     config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
     config.set_initial_max_data(10_000_000);
@@ -131,7 +141,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
         quiche::connect(None, &scid, local_addr, peer_addr, &mut config)
             .unwrap();
 
-    println!(
+    debug!(
         "connecting to {:} from {:} with scid {}",
         peer_addr,
         socket.local_addr().unwrap(),
@@ -142,14 +152,14 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
 
     while let Err(e) = socket.send_to(&out[..write], send_info.to) {
         if e.kind() == std::io::ErrorKind::WouldBlock {
-            println!("send() would block");
+            debug!("send() would block");
             continue;
         }
 
         panic!("send() failed: {:?}", e);
     }
 
-    println!("written {}", write);
+    debug!("written {}", write);
 
     let h3_config = quiche::h3::Config::new().unwrap();
 
@@ -172,7 +182,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
             // has expired, so handle it without attempting to read packets. We
             // will then proceed with the send loop.
             if events.is_empty() {
-                println!("timed out");
+                debug!("timed out");
 
                 conn.on_timeout();
 
@@ -186,7 +196,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     // There are no more UDP packets to read, so end the read
                     // loop.
                     if e.kind() == std::io::ErrorKind::WouldBlock {
-                        println!("recv() would block");
+                        debug!("recv() would block");
                         break 'read;
                     }
 
@@ -194,7 +204,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                 },
             };
 
-            println!("got {} bytes", len);
+            info!("got {} bytes", len);
 
             let recv_info = quiche::RecvInfo {
                 to: local_addr,
@@ -211,14 +221,12 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                 },
             };
 
-            println!("processed {} bytes", read);
+            info!("processed {} bytes", read);
         }
-
-        println!("done reading");
 
         if conn.is_closed() {
             info!("connection closed, {:?}", conn.stats());
-            break Ok(());
+            return Ok(());
         }
 
         // Create a new HTTP/3 connection once the QUIC connection is established.
@@ -232,54 +240,25 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
         // Send HTTP requests once the QUIC connection is established, and until
         // all requests have been sent.
         if let Some(h3_conn) = &mut http3_conn {
-            println!("Waiting for gRPC data");
             loop{
                 let data = match from_client.try_recv() {
                     Ok(v) => v,
                     Err(e) => {
                         if e == mpsc::error::TryRecvError::Empty {
-                            println!("no data to send");
-                            sleep(Duration::from_millis(10)).await;
+                            sleep(Duration::from_millis(1)).await;
                             break;
                         }
 
                         panic!("recv() failed: {:?}", e);
                     },
                 };
-
-                //divide data if greater than MAX_DATAGRAM_SIZE
-                println!("Data size: {:?}", data.len());
-                
-                /* 
-                let mut data = data;
-                let accepted_size = MAX_DATAGRAM_SIZE/8 - 167;
-                println!("Accepted size: {:?}", accepted_size);
-                while data.len() > accepted_size {
-                    let (first, second) = data.split_at(accepted_size);
-                    println!("sending HTTP request {:?}", req);
-                    println!("{:?}", first);
-                    let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
-                    h3_conn.send_body(&mut conn, stream_id, &first, false).unwrap();
-                    data = second.to_vec();
-                } */
-                
-                
+  
                 println!("sending HTTP request {:?}", req);
                 println!("{:?}", data);
                 let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
                 h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
             }
-                
 
-            /* 
-            if !req_sent {
-                info!("sending HTTP request {:?}", req);
-
-                h3_conn.send_request(&mut conn, &req, true).unwrap();
-
-                req_sent = true;
-            }
-            */
         }
         
         if let Some(http3_conn) = &mut http3_conn {
@@ -287,7 +266,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
             loop {
                 match http3_conn.poll(&mut conn) {
                     Ok((stream_id, quiche::h3::Event::Headers { list, .. })) => {
-                        println!(
+                        info!(
                             "got response headers {:?} on stream id {}",
                             hdrs_to_strings(&list),
                             stream_id
@@ -298,12 +277,10 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                         while let Ok(read) =
                             http3_conn.recv_body(&mut conn, stream_id, &mut buf)
                         {
-                            println!(
+                            info!(
                                 "got {} bytes of response data on stream {}",
                                 read, stream_id
                             );
-
-                            println!("{:?}", &buf[..read]);
 
                             to_client.send(buf[..read].to_vec()).await?;
                             sleep(Duration::from_millis(10)).await;
@@ -311,12 +288,12 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     },
 
                     Ok((_stream_id, quiche::h3::Event::Finished)) => {
-                        println!(
+                        info!(
                             "response received in {:?}, closing...",
                             req_start.elapsed()
                         );
 
-                        conn.close(true, 0x100, b"kthxbye").unwrap();
+                        //conn.close(true, 0x100, b"kthxbye").unwrap();
                     },
 
                     Ok((_stream_id, quiche::h3::Event::Reset(e))) => {
@@ -331,7 +308,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     Ok((_, quiche::h3::Event::PriorityUpdate)) => unreachable!(),
 
                     Ok((goaway_id, quiche::h3::Event::GoAway)) => {
-                        println!("GOAWAY id={}", goaway_id);
+                        debug!("GOAWAY id={}", goaway_id);
                     },
 
                     Err(quiche::h3::Error::Done) => {
@@ -354,7 +331,6 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                 Ok(v) => v,
 
                 Err(quiche::Error::Done) => {
-                    println!("done writing");
                     break;
                 },
 
@@ -368,14 +344,14 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
 
             if let Err(e) = socket.send_to(&out[..write], send_info.to) {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
-                    println!("send() would block");
+                    debug!("send() would block");
                     break;
                 }
 
                 panic!("send() failed: {:?}", e);
             }
 
-            println!("written {}", write);
+            debug!("written {}", write);
         }
 
         if conn.is_closed() {
@@ -394,7 +370,6 @@ struct Client {
 impl Client {
     // Handle the communication between Quic (synchronous) thread and gRPC (asynchronous) thread.
     async fn run(&mut self) -> Result<()> {
-        println!("---------Client running");
         let mut buf = [0u8; 1500];
         loop {
             tokio::select! {

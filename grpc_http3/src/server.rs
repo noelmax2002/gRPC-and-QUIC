@@ -14,7 +14,7 @@ use tokio::task;
 use quiche;
 use ring::rand::*;
 use quiche::h3::NameValue;
-use log::{trace,info,warn,error};
+use log::{trace,info,warn,error,debug};
 use tokio::time::{sleep,Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -108,7 +108,7 @@ impl Io {
             .set_application_protos(quiche::h3::APPLICATION_PROTOCOL)
             .unwrap();
 
-        config.set_max_idle_timeout(500000);
+        config.set_max_idle_timeout(5000);
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_initial_max_data(10_000_000);
@@ -154,7 +154,7 @@ impl Io {
                 // has expired, so handle it without attempting to read packets. We
                 // will then proceed with the send loop.
                 if events.is_empty() {
-                    println!("timed out");
+                    debug!("timed out");
 
                     clients.values_mut().for_each(|c| c.conn.on_timeout());
 
@@ -168,12 +168,12 @@ impl Io {
                         // There are no more UDP packets to read, so end the read
                         // loop.
                         if e.kind() == std::io::ErrorKind::WouldBlock {
-                            println!("recv() would block");
+                            debug!("recv() would block");
                             break 'read;
                         }
 
                         if e.kind() == std::io::ErrorKind::ConnectionReset {
-                            println!("The connection is reset");
+                            debug!("The connection is reset");
                             
                             break 'read;
                         }
@@ -182,7 +182,7 @@ impl Io {
                     },
                 };
 
-                println!("got {} bytes", len);
+                info!("got {} bytes", len);
 
                 let pkt_buf = &mut buf[..len];
 
@@ -199,7 +199,7 @@ impl Io {
                     },
                 };
 
-                println!("got packet {:?}", hdr);
+                info!("got packet {:?}", hdr);
 
                 let conn_id = ring::hmac::sign(&conn_id_seed, &hdr.dcid);
                 let conn_id = &conn_id.as_ref()[..quiche::MAX_CONN_ID_LEN];
@@ -216,7 +216,7 @@ impl Io {
                     }
 
                     if !quiche::version_is_supported(hdr.version) {
-                        println!("Doing version negotiation");
+                        info!("Doing version negotiation");
 
                         let len =
                             quiche::negotiate_version(&hdr.scid, &hdr.dcid, &mut out)
@@ -226,7 +226,7 @@ impl Io {
 
                         if let Err(e) = socket.send_to(out, from) {
                             if e.kind() == std::io::ErrorKind::WouldBlock {
-                                println!("send() would block");
+                                debug!("send() would block");
                                 break;
                             }
 
@@ -245,7 +245,7 @@ impl Io {
 
                     // Do stateless retry if the client didn't send a token.
                     if token.is_empty() {
-                        println!("Doing stateless retry");
+                        info!("Doing stateless retry");
 
                         let new_token = Self::mint_token(&hdr, &from);
 
@@ -263,7 +263,7 @@ impl Io {
 
                         if let Err(e) = socket.send_to(out, from) {
                             if e.kind() == std::io::ErrorKind::WouldBlock {
-                                println!("send() would block");
+                                debug!("send() would block");
                                 break;
                             }
 
@@ -319,8 +319,6 @@ impl Io {
                     }
                 };
 
-                println!("out of this loop");
-
                 let recv_info = quiche::RecvInfo {
                     to: socket.local_addr().unwrap(),
                     from,
@@ -336,7 +334,7 @@ impl Io {
                     },
                 };
 
-                println!("{} processed {} bytes", client.conn.trace_id(), read);
+                info!("{} processed {} bytes", client.conn.trace_id(), read);
 
                 // Create a new HTTP/3 connection as soon as the QUIC connection
                 // is established.
@@ -401,8 +399,6 @@ impl Io {
                         }
                     };
             
-                    //client_tx.send(buf[..len].to_vec()).await?;
-
                 }
 
                 if client.http3_conn.is_some() {
@@ -431,8 +427,6 @@ impl Io {
                                     );
 
                                     //send data to gRPC
-                                    println!("Client Id : {:?}", client.id);
-                                    println!("Clients map empty : {:?}", self.clients_tx.keys());
                                     let client_tx = match self.clients_tx.get(&client.id) {
                                         Some(v) => v,
                                         None => {
@@ -442,10 +436,8 @@ impl Io {
                                            continue;
                                         }
                                     };
-                                    println!("---Sending data to gRPC");
                                     client_tx.send(buf[..read].to_vec()).await?;
                                     sleep(Duration::from_millis(10)).await;
-                                    println!("---Data sent to gRPC");
                                 }
                                 //client.conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0).unwrap();
                             },
@@ -484,11 +476,11 @@ impl Io {
                 let (data, id) = match self.rx.try_recv(){
                     Ok(v) => v,
                     Err(mpsc::error::TryRecvError::Empty) => {
-                        println!("No more data to send");
+                        debug!("No more data to send");
                         break;
                     },
                     Err(e) => {
-                        println!("Channel closed");
+                        debug!("Channel closed");
                         break;
                     }
                     
@@ -504,11 +496,6 @@ impl Io {
                        continue;
                     }
                 };
-                /* 
-                let h3_conn = client.http3_conn.as_mut().unwrap();
-                let stream_id = h3_conn.send_request(&mut client.conn, &resp, false).unwrap();
-                h3_conn.send_body(&mut client.conn, stream_id, &data, true).unwrap();*/
-
                 let stream_id = 0;
                 let h3_conn = client.http3_conn.as_mut().unwrap();
                 let mut conn = &mut client.conn;
@@ -556,7 +543,7 @@ impl Io {
                         Ok(v) => v,
 
                         Err(quiche::Error::Done) => {
-                            println!("{} done writing", client.conn.trace_id());
+                            debug!("{} done writing", client.conn.trace_id());
                             break;
                         },
 
@@ -570,23 +557,23 @@ impl Io {
 
                     if let Err(e) = socket.send_to(&out[..write], send_info.to) {
                         if e.kind() == std::io::ErrorKind::WouldBlock {
-                            println!("send() would block");
+                            debug!("send() would block");
                             break;
                         }
 
                         panic!("send() failed: {:?}", e);
                     }
 
-                    println!("{} written {} bytes", client.conn.trace_id(), write);
+                    info!("{} written {} bytes", client.conn.trace_id(), write);
                 }
             }
 
             // Garbage collect closed connections.
             clients.retain(|_, ref mut c| {
-                println!("Collecting garbage");
+                info!("Collecting garbage");
 
                 if c.conn.is_closed() {
-                    info!(
+                    println!(
                         "{} connection collected {:?}",
                         c.conn.trace_id(),
                         c.conn.stats()
@@ -659,7 +646,7 @@ impl Io {
         let conn = &mut client.conn;
         let http3_conn = &mut client.http3_conn.as_mut().unwrap();
 
-        println!("{} stream {} is writable", conn.trace_id(), stream_id);
+        debug!("{} stream {} is writable", conn.trace_id(), stream_id);
 
         if !client.partial_responses.contains_key(&stream_id) {
             return;
@@ -668,7 +655,7 @@ impl Io {
         let resp = client.partial_responses.get_mut(&stream_id).unwrap();
 
         if let Some(ref headers) = resp.headers {
-            println!("{} stream send response {:?}", conn.trace_id(), headers);
+            debug!("{} stream send response {:?}", conn.trace_id(), headers);
             match http3_conn.send_response(conn, stream_id, headers, false) {
                 Ok(_) => (),
 
@@ -730,7 +717,6 @@ struct Client {
 impl Client {
     async fn run(&mut self) -> Result<()> {
         let mut buf = [0u8; 1500];
-        println!("------------Client started");
         loop {
             tokio::select! {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
