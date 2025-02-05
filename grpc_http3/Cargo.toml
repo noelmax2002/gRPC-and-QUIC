@@ -12,6 +12,14 @@ path = "src/server.rs"
 name = "client"
 path = "src/client.rs"
 
+[[bin]] 
+name = "serverHTTP2"
+path = "src/serverHTTP2.rs"
+
+[[bin]] 
+name = "clientHTTP2"
+path = "src/clientHTTP2.rs"
+
 [dependencies]
 tokio = { version = "1.41.0", features = ["full"] } 
 prost = "0.13"

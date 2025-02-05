@@ -243,7 +243,8 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     Ok(v) => v,
                     Err(e) => {
                         if e == mpsc::error::TryRecvError::Empty {
-                            sleep(Duration::from_millis(1)).await;
+                            //sleep(Duration::from_millis(1)).await;
+                            sleep(Duration::new(0,1)).await;
                             break;
                         }
 
@@ -252,7 +253,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                 };
   
                 println!("sending HTTP request {:?}", req);
-                println!("{:?}", data);
+                //println!("{:?}", data);
                 let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
                 h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
             }
@@ -275,13 +276,13 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                         while let Ok(read) =
                             http3_conn.recv_body(&mut conn, stream_id, &mut buf)
                         {
-                            info!(
+                            println!(
                                 "got {} bytes of response data on stream {}",
                                 read, stream_id
                             );
 
                             to_client.send(buf[..read].to_vec()).await?;
-                            sleep(Duration::from_millis(10)).await;
+                            sleep(Duration::new(0,10)).await;
                         }
                     },
 
@@ -378,15 +379,16 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
-        println!("Received IO message: {:?}", msg);
+        //println!("Received IO message: {:?}", msg);
         self.stream.write(&msg).await?;
         
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
-        println!("Received gRPC message: {:?}", msg);
-        println!("Size of msg : {:?}", msg.len());
+        //println!("Received gRPC message: {:?}", msg);
+        //println!("Size of msg : {:?}", msg.len());
+        println!("Received gRPC message of size: {:?}", msg.len());
         self.to_io.send(msg.to_vec()).await?;
 
         Ok(())

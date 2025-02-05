@@ -14,7 +14,6 @@ use tokio::task;
 use quiche;
 use ring::rand::*;
 use log::{info,error,debug};
-//use tokio::time::{sleep,Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -370,7 +369,7 @@ impl Io {
                             // Communication with IO.
                             let (tx, rx) = mpsc::channel(1000);
 
-                            println!("Creating new client with id {:?}", client.id);
+                            println!("Creating new gRPC channel with id {:?}", client.id);
             
                             let mut new_client = Client {
                                 stream: to_client,
@@ -480,8 +479,9 @@ impl Io {
                     
                 };
 
-                println!("sending HTTP response {:?}", resp);
-                println!("{:?}", data);
+                //println!("sending HTTP response {:?}", resp);
+                //println!("{:?}", data);
+                println!("sending HTTP response of size {:?}", data.len());
                 let client = match clients.get_mut(&id) {
                     Some(v) => v,
                     None => {
@@ -708,13 +708,14 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
-        println!("Client got a message from IO: {:?}", msg);
+        //println!("Client got a message from IO: {:?}", msg);
         self.stream.write(&msg).await?;
         
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
+        println!("Received gRPC message of size: {:?}", msg.len());
         self.to_io.send((msg.to_vec(), self.id.clone())).await?;
 
         Ok(())
