@@ -376,7 +376,6 @@ dependencies = [
  "log",
  "mio 0.8.11",
  "nix",
- "octets",
  "prost",
  "quiche",
  "ring",

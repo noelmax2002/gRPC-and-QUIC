@@ -116,7 +116,11 @@ impl Io {
         config.set_initial_max_streams_bidi(100);
         config.set_initial_max_streams_uni(100);
         config.set_disable_active_migration(true);
-        config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
+        //config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
+
+        
+        //config.set_max_connection_window(1000);
+        //config.set_max_stream_window(1000);
 
         let h3_config = quiche::h3::Config::new().unwrap();
 
@@ -131,6 +135,8 @@ impl Io {
                     quiche::h3::Header::new(b":status", 200.to_string().as_bytes()),
                     quiche::h3::Header::new(b"server", b"quiche"),
                 ];
+
+        let mut response = false;
 
         loop {
             // Find the shorter timeout from all the active connections.
@@ -175,7 +181,7 @@ impl Io {
                     },
                 };
 
-                info!("got {} bytes", len);
+                debug!("got {} bytes from {}", len, from);
 
                 let pkt_buf = &mut buf[..len];
 
@@ -209,7 +215,7 @@ impl Io {
                     }
 
                     if !quiche::version_is_supported(hdr.version) {
-                        info!("Doing version negotiation");
+                        println!("Doing version negotiation");
 
                         let len =
                             quiche::negotiate_version(&hdr.scid, &hdr.dcid, &mut out)
@@ -238,7 +244,7 @@ impl Io {
 
                     // Do stateless retry if the client didn't send a token.
                     if token.is_empty() {
-                        info!("Doing stateless retry");
+                        debug!("Doing stateless retry");
 
                         let new_token = Self::mint_token(&hdr, &from);
 
@@ -260,7 +266,7 @@ impl Io {
                                 break;
                             }
 
-                            panic!("send() failed: {:?}", e);
+                            debug!("send() failed: {:?}", e);
                         }
                         continue 'read;
                     }
@@ -270,12 +276,12 @@ impl Io {
                     // The token was not valid, meaning the retry failed, so
                     // drop the packet.
                     if odcid.is_none() {
-                        error!("Invalid address validation token");
+                        println!("Invalid address validation token");
                         continue 'read;
                     }
 
                     if scid.len() != hdr.dcid.len() {
-                        error!("Invalid destination connection ID");
+                        println!("Invalid destination connection ID");
                         continue 'read;
                     }
 
@@ -354,7 +360,7 @@ impl Io {
                     // TODO: sanity check h3 connection before adding to map
                     client.http3_conn = Some(h3_conn);
 
-                    info!(
+                    println!(
                         "{} HTTP/3 connection created",
                         client.conn.trace_id()
                     );
@@ -439,10 +445,7 @@ impl Io {
 
                             Ok((_stream_id, quiche::h3::Event::Reset { .. })) => (),
 
-                            Ok((
-                                _prioritized_element_id,
-                                quiche::h3::Event::PriorityUpdate,
-                            )) => (),
+                            Ok((_, quiche::h3::Event::PriorityUpdate)) => (),
 
                             Ok((_goaway_id, quiche::h3::Event::GoAway)) => (),
 
@@ -493,24 +496,28 @@ impl Io {
                 let stream_id = 0;
                 let h3_conn = client.http3_conn.as_mut().unwrap();
                 let conn = &mut client.conn;
-                match h3_conn.send_response(conn, stream_id, &resp, false) {
-                    Ok(v) => v,
-            
-                    Err(quiche::h3::Error::StreamBlocked) => {
-                        let response = PartialResponse {
-                            headers: Some(resp.clone()),
-                            body: data,
-                            written: 0,
-                        };
-            
-                        client.partial_responses.insert(stream_id, response);
-                        continue;
-                    },
-            
-                    Err(e) => {
-                        error!("{} stream send failed {:?}", conn.trace_id(), e);
-                        continue;
-                    },
+                if !response{ // Send response header only the first time
+                    match h3_conn.send_response(conn, stream_id, &resp, false) {
+                        Ok(v) => v,
+                
+                        Err(quiche::h3::Error::StreamBlocked) => {
+                            println!("{} stream blocked", conn.trace_id());
+                            let response = PartialResponse {
+                                headers: Some(resp.clone()),
+                                body: data,
+                                written: 0,
+                            };
+                
+                            client.partial_responses.insert(stream_id, response);
+                            continue;
+                        },
+                
+                        Err(e) => {
+                            println!("{} stream send failed {:?}", conn.trace_id(), e);
+                            continue;
+                        },
+                    }   
+                    response = true;
                 }
             
                 match h3_conn.send_body(conn, stream_id, &data, false) {
@@ -519,7 +526,7 @@ impl Io {
                     Err(quiche::h3::Error::Done) => 0,
             
                     Err(e) => {
-                        error!("{} stream send failed {:?}", conn.trace_id(), e);
+                        error!("{} stream send failed 3 {:?}", conn.trace_id(), e);
                         continue;
                     },
                 };
@@ -558,7 +565,7 @@ impl Io {
                         panic!("send() failed: {:?}", e);
                     }
 
-                    info!("{} written {} bytes", client.conn.trace_id(), write);
+                    debug!("{} written {} bytes", client.conn.trace_id(), write);
                 }
             }
 
@@ -658,7 +665,7 @@ impl Io {
                 },
 
                 Err(e) => {
-                    error!("{} stream send failed {:?}", conn.trace_id(), e);
+                    error!("{} stream send failed 2 {:?}", conn.trace_id(), e);
                     return;
                 },
             }
@@ -676,7 +683,7 @@ impl Io {
             Err(e) => {
                 client.partial_responses.remove(&stream_id);
 
-                error!("{} stream send failed {:?}", conn.trace_id(), e);
+                error!("{} stream send failed 1 {:?}", conn.trace_id(), e);
                 return;
             },
         };

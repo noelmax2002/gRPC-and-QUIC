@@ -125,6 +125,9 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
     config.set_initial_max_streams_uni(100_000);
     config.set_disable_active_migration(true);
 
+    //config.set_max_connection_window(1000);
+    //config.set_max_stream_window(1000);
+
     let mut http3_conn = None;
 
     // Generate a random source connection ID for the connection.
@@ -141,7 +144,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
         quiche::connect(None, &scid, local_addr, peer_addr, &mut config)
             .unwrap();
 
-    debug!(
+    println!(
         "connecting to {:} from {:} with scid {}",
         peer_addr,
         socket.local_addr().unwrap(),
@@ -159,7 +162,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
         panic!("send() failed: {:?}", e);
     }
 
-    debug!("written {}", write);
+    println!("written {}", write);
 
     let h3_config = quiche::h3::Config::new().unwrap();
 
@@ -171,11 +174,13 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
     let req_start = std::time::Instant::now();
 
     loop {
+        println!("looping");
         poll.poll(&mut events, conn.timeout()).unwrap();
 
         // Read incoming UDP packets from the socket and feed them to quiche,
         // until there are no more packets to read.
         'read: loop {
+            println!("reading");
             // If the event loop reported no events, it means that the timeout
             // has expired, so handle it without attempting to read packets. We
             // will then proceed with the send loop.
@@ -223,7 +228,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
         }
 
         if conn.is_closed() {
-            info!("connection closed, {:?}", conn.stats());
+            println!("connection closed, {:?}", conn.stats());
             return Ok(());
         }
 
@@ -243,8 +248,8 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     Ok(v) => v,
                     Err(e) => {
                         if e == mpsc::error::TryRecvError::Empty {
-                            //sleep(Duration::from_millis(1)).await;
-                            sleep(Duration::new(0,1)).await;
+                            sleep(Duration::from_millis(1)).await;
+                            //sleep(Duration::new(0,1)).await; //To force the task to yield.
                             break;
                         }
 
@@ -282,12 +287,13 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                             );
 
                             to_client.send(buf[..read].to_vec()).await?;
-                            sleep(Duration::new(0,10)).await;
+                            sleep(Duration::from_millis(1)).await;
+                            //sleep(Duration::new(0,10)).await;
                         }
                     },
 
                     Ok((_stream_id, quiche::h3::Event::Finished)) => {
-                        info!(
+                        println!(
                             "response received in {:?}, closing...",
                             req_start.elapsed()
                         );
@@ -296,7 +302,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     },
 
                     Ok((_stream_id, quiche::h3::Event::Reset(e))) => {
-                        error!(
+                        println!(
                             "request was reset by peer with {}, closing...",
                             e
                         );
@@ -304,7 +310,6 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                         conn.close(true, 0x100, b"kthxbye").unwrap();
                     },
 
-                    Ok((_, quiche::h3::Event::PriorityUpdate)) => unreachable!(),
 
                     Ok((goaway_id, quiche::h3::Event::GoAway)) => {
                         debug!("GOAWAY id={}", goaway_id);
@@ -312,6 +317,10 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
 
                     Err(quiche::h3::Error::Done) => {
                         break;
+                    },
+
+                    Ok((_, quiche::h3::Event::PriorityUpdate)) => {
+                        println!("Priority update");
                     },
 
                     Err(e) => {
@@ -379,7 +388,7 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
-        //println!("Received IO message: {:?}", msg);
+        println!("Received IO message of size: {:?}", msg.len());
         self.stream.write(&msg).await?;
         
         Ok(())
@@ -390,6 +399,7 @@ impl Client {
         //println!("Size of msg : {:?}", msg.len());
         println!("Received gRPC message of size: {:?}", msg.len());
         self.to_io.send(msg.to_vec()).await?;
+        println!("msg sent to IO thread");
 
         Ok(())
     }
