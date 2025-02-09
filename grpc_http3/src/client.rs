@@ -134,11 +134,11 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
     let scid = quiche::ConnectionId::from_ref(&scid);
 
     // Get local address.
-    let local_addr = socket.local_addr().unwrap();
+    //let local_addr = socket.local_addr().unwrap();
 
     // Create a QUIC connection and initiate handshake.
     let mut conn =
-        quiche::connect(None, &scid, local_addr, peer_addr, &mut config)
+        quiche::connect(None, &scid, peer_addr, &mut config)
             .unwrap();
 
     debug!(
@@ -165,7 +165,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
 
     // Prepare request. (dummy request for now)
     let req = vec![
-        quiche::h3::Header::new(b":method", b"PUSH"),
+        quiche::h3::Header::new(b":method", b"POST"),
     ];
 
     let req_start = std::time::Instant::now();
@@ -205,7 +205,6 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
             info!("got {} bytes", len);
 
             let recv_info = quiche::RecvInfo {
-                to: local_addr,
                 from,
             };
 
@@ -304,11 +303,11 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                         conn.close(true, 0x100, b"kthxbye").unwrap();
                     },
 
-                    Ok((_, quiche::h3::Event::PriorityUpdate)) => unreachable!(),
-
                     Ok((goaway_id, quiche::h3::Event::GoAway)) => {
                         debug!("GOAWAY id={}", goaway_id);
                     },
+
+                    Ok((_, quiche::h3::Event::Datagram)) => (),
 
                     Err(quiche::h3::Error::Done) => {
                         break;

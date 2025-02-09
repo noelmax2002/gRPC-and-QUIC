@@ -24,7 +24,7 @@ path = "src/clientHTTP2.rs"
 tokio = { version = "1.41.0", features = ["full"] } 
 prost = "0.13"
 tonic = "0.12" 
-quiche = { path = "../quiche" }
+quiche = { path = "../quicheMultipath/quiche/quiche" }
 hyper = "1.4.1" 
 futures-util = "0.3.31" 
 tower-service = "0.3.3"
@@ -34,7 +34,7 @@ env_logger = "0.10"
 mio = { version = "0.8", features = ["net", "os-poll"] }
 url = "2.5.3"
 log = "0.4"
-octets = { version = "0.3", path = "../octets" }
+octets = {path = "../quicheMultipath/quiche/octets" }
 ring = "0.17"
 libc = "0.2"
 nix = { version = "0.27", features = ["net", "socket", "uio"] }

@@ -14,6 +14,7 @@ use tokio::task;
 use quiche;
 use ring::rand::*;
 use log::{info,error,debug};
+use std::pin::Pin;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -53,7 +54,7 @@ struct PartialResponse {
 struct QClient {
     id: quiche::ConnectionId<'static>,
 
-    conn: quiche::Connection,
+    conn: Pin<Box<quiche::Connection>>,
 
     http3_conn: Option<quiche::h3::Connection>,
 
@@ -288,7 +289,6 @@ impl Io {
                     let conn = quiche::accept(
                         &scid,
                         odcid.as_ref(),
-                        local_addr,
                         from,
                         &mut config,
                     )
@@ -313,7 +313,6 @@ impl Io {
                 };
 
                 let recv_info = quiche::RecvInfo {
-                    to: socket.local_addr().unwrap(),
                     from,
                 };
 
@@ -439,12 +438,9 @@ impl Io {
 
                             Ok((_stream_id, quiche::h3::Event::Reset { .. })) => (),
 
-                            Ok((
-                                _prioritized_element_id,
-                                quiche::h3::Event::PriorityUpdate,
-                            )) => (),
-
                             Ok((_goaway_id, quiche::h3::Event::GoAway)) => (),
+
+                            Ok((_, quiche::h3::Event::Datagram)) => (),
 
                             Err(quiche::h3::Error::Done) => {
                                 break;
