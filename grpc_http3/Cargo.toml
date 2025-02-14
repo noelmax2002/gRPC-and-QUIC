@@ -15,11 +15,12 @@ path = "src/client.rs"
 [[bin]] 
 name = "serverHTTP2"
 path = "src/HTTP2/serverHTTP2.rs"
+required-features = ["tls"]
 
 [[bin]] 
 name = "clientHTTP2"
 path = "src/HTTP2/clientHTTP2.rs"
-
+required-features = ["tls"]
 
 [[bin]] 
 name = "serverUDP"
@@ -28,6 +29,9 @@ path = "src/UDP/server_async.rs"
 [[bin]] 
 name = "clientUDP"
 path = "src/UDP/client_async.rs"
+
+[features]
+tls = ["tonic/tls"]
 
 [dependencies]
 tokio = { version = "1.41.0", features = ["full"] } 

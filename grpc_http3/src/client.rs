@@ -13,6 +13,7 @@ use tokio::task;
 use log::{info, error, debug};
 use tokio::time::Duration;
 use tokio::time::sleep;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use quiche::h3::NameValue;
 
@@ -28,9 +29,10 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-
-    let channel = Endpoint::from_static("https://127.0.0.1:4433")
-        .connect_with_connector(service_fn(|uri: Uri| async {
+//127.0.0.1:4433
+//192.168.1.7:8080"
+    let channel = Endpoint::from_static("https://127.0.0.1:4433") 
+        .connect_with_connector_lazy(service_fn(|uri: Uri| async {
             let (client, server) = tokio::io::duplex(12000);
             task::spawn(async move {
                 let (to_client, from_io) = mpsc::channel(1000);
@@ -53,20 +55,29 @@ async fn main() -> Result<()> {
             });
 
             Ok::<_, std::io::Error>(TokioIo::new(server))
-    })).await?;
+    }));
 
+    let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        
     let mut client = GreeterClient::new(channel);
-    let mut client2 = client.clone();
+    //let mut client2 = client.clone();
      
-
     let request = tonic::Request::new(HelloRequest {
         name: "Maxime".into(),
     });
 
+    let response = client.say_hello(request).await.unwrap();
+    println!("RESPONSE={:?}", response);
+
+    let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        println!("Time elapsed: {:?}", end - start);
+
+    /*
     let request2 = tonic::Request::new(HelloRequest {
         name: "Guillaume".into(),
-    });
+    }); */
    
+   /* 
     let join_handle: task::JoinHandle<()> = tokio::spawn(async move {
         let response = client.say_hello(request).await.unwrap();
         println!("RESPONSE={:?}", response);
@@ -80,6 +91,7 @@ async fn main() -> Result<()> {
 
     join_handle.await?;
     join_handle2.await?;
+    */
 
     Ok(())
 }
@@ -243,7 +255,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     Err(e) => {
                         if e == mpsc::error::TryRecvError::Empty {
                             //sleep(Duration::from_millis(1)).await;
-                            sleep(Duration::new(0,1)).await;
+                            sleep(Duration::new(0,10)).await;
                             break;
                         }
 
@@ -251,7 +263,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     },
                 };
   
-                println!("sending HTTP request {:?}", req);
+                //println!("sending HTTP request {:?}", req);
                 //println!("{:?}", data);
                 let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
                 h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
@@ -275,13 +287,13 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                         while let Ok(read) =
                             http3_conn.recv_body(&mut conn, stream_id, &mut buf)
                         {
-                            println!(
+                            debug!(
                                 "got {} bytes of response data on stream {}",
                                 read, stream_id
                             );
 
                             to_client.send(buf[..read].to_vec()).await?;
-                            sleep(Duration::new(0,10)).await;
+                            sleep(Duration::new(0,1)).await;
                         }
                     },
 
@@ -291,7 +303,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                             req_start.elapsed()
                         );
 
-                        //conn.close(true, 0x100, b"kthxbye").unwrap();
+                        conn.close(true, 0x100, b"kthxbye").unwrap();
                     },
 
                     Ok((_stream_id, quiche::h3::Event::Reset(e))) => {
@@ -379,6 +391,7 @@ impl Client {
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("Received IO message: {:?}", msg);
+        //println!("Received IO message of size: {:?}", msg.len());
         self.stream.write(&msg).await?;
         
         Ok(())
@@ -387,7 +400,7 @@ impl Client {
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
         //println!("Received gRPC message: {:?}", msg);
         //println!("Size of msg : {:?}", msg.len());
-        println!("Received gRPC message of size: {:?}", msg.len());
+        //println!("Received gRPC message of size: {:?}", msg.len());
         self.to_io.send(msg.to_vec()).await?;
 
         Ok(())
@@ -410,3 +423,63 @@ pub fn hdrs_to_strings(hdrs: &[quiche::h3::Header]) -> Vec<(String, String)> {
         })
         .collect()
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[tokio::test]
+    // Server must be running before running this test.
+    async fn hello_world_test() -> Result<()> {
+        
+        let channel = Endpoint::from_static("https://127.0.0.1:4433")
+            .connect_with_connector(service_fn(|uri: Uri| async {
+                let (client, server) = tokio::io::duplex(12000);
+                task::spawn(async move {
+                    let (to_client, from_io) = mpsc::channel(1000);
+                    let (to_io, from_client) = mpsc::channel(1000);
+    
+                    let mut new_client = Client {
+                        stream: client,
+                        to_io: to_io,
+                        from_io: from_io,
+                    };
+                
+                    // Let the client run on its own.
+                    tokio::spawn(async move {
+                        new_client.run().await.unwrap();
+                    });
+    
+    
+    
+                    run_client(uri, to_client, from_client).await.unwrap();
+                });
+    
+                Ok::<_, std::io::Error>(TokioIo::new(server))
+        })).await?;
+    
+        let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+
+        let mut client = GreeterClient::new(channel);
+    
+        let request = tonic::Request::new(HelloRequest {
+            name: "Maxime".into(),
+        });
+        
+       
+        let response = client.say_hello(request).await.unwrap();
+
+        let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        println!("Time elapsed: {:?}", end - start);
+
+        assert_eq!(response.get_ref().message, "Hello Maxime!");
+    
+        Ok(())
+    }
+}
+
+
+

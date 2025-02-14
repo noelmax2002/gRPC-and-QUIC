@@ -8,6 +8,7 @@ use tower::service_fn;
 use hyper_util::rt::tokio::TokioIo;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::task;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -70,3 +71,42 @@ async fn run_client(uri: Uri, mut to_grpc: DuplexStream) -> Result<()> {
         }
     }
 }
+    
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[tokio::test]
+    // Server must be running before running this test.
+    async fn hello_world_test() -> Result<()> {
+        
+        let channel = Endpoint::from_static("https://127.0.0.1:4433")
+        .connect_with_connector(service_fn(|uri: Uri| async {
+            let (client, server) = tokio::io::duplex(12000);
+            task::spawn(async move {
+                run_client(uri, client).await.unwrap();
+            });
+
+            Ok::<_, std::io::Error>(TokioIo::new(server))
+    })).await?;
+
+
+        let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let mut client = GreeterClient::new(channel);
+
+        let request = tonic::Request::new(HelloRequest {
+            name: "Maxime".into(),
+        });
+        
+        let response = client.say_hello(request).await.unwrap();
+
+        let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        println!("Time elapsed: {:?}", end - start);
+
+        assert_eq!(response.get_ref().message, "Hello Maxime!");
+    
+        Ok(())
+    }
+}
+

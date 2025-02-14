@@ -86,7 +86,8 @@ impl Io {
         // Setup the event loop.
         let mut poll = mio::Poll::new().unwrap();
         let mut events = mio::Events::with_capacity(1024);
-
+//127.0.0.1:4433
+//192.168.1.7:8080
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind("127.0.0.1:4433".parse().unwrap()).unwrap();
         poll.registry()
@@ -137,7 +138,7 @@ impl Io {
             // Find the shorter timeout from all the active connections.
             //
             // TODO: use event loop that properly supports timers
-            let timeout = clients.values().filter_map(|c| c.conn.timeout()).min();
+            let mut timeout = clients.values().filter_map(|c| c.conn.timeout()).min();
 
             poll.poll(&mut events, timeout).unwrap();
 
@@ -176,7 +177,7 @@ impl Io {
                     },
                 };
 
-                info!("got {} bytes", len);
+                debug!("got {} bytes from {:?}", len, from);
 
                 let pkt_buf = &mut buf[..len];
 
@@ -234,6 +235,9 @@ impl Io {
 
                     let scid = quiche::ConnectionId::from_ref(&scid);
 
+                    let odcid = None;
+
+                    /*
                     // Token is always present in Initial packets.
                     let token = hdr.token.as_ref().unwrap();
 
@@ -273,7 +277,7 @@ impl Io {
                     if odcid.is_none() {
                         error!("Invalid address validation token");
                         continue 'read;
-                    }
+                    } 
 
                     if scid.len() != hdr.dcid.len() {
                         error!("Invalid destination connection ID");
@@ -283,6 +287,9 @@ impl Io {
                     // Reuse the source connection ID we sent in the Retry packet,
                     // instead of changing it again.
                     let scid = hdr.dcid.clone();
+                    
+                    */
+                    let scid = quiche::ConnectionId::from_vec(scid.to_vec());
 
                     println!("New connection: dcid={:?} scid={:?}", hdr.dcid, scid);
 
@@ -333,7 +340,7 @@ impl Io {
                 if (client.conn.is_in_early_data() || client.conn.is_established()) &&
                     client.http3_conn.is_none() 
                 {
-                    println!(
+                    debug!(
                         "{} QUIC handshake completed, now trying HTTP/3",
                         client.conn.trace_id()
                     );
@@ -368,7 +375,7 @@ impl Io {
                             // Communication with IO.
                             let (tx, rx) = mpsc::channel(1000);
 
-                            println!("Creating new gRPC channel with id {:?}", client.id);
+                            //println!("Creating new gRPC channel with id {:?}", client.id);
             
                             let mut new_client = Client {
                                 stream: to_client,
@@ -413,7 +420,7 @@ impl Io {
 
                             Ok((stream_id, quiche::h3::Event::Data)) => {
                                 while let Ok(read) = http3_conn.recv_body(&mut client.conn, stream_id, &mut buf) {
-                                    println!(
+                                    debug!(
                                         "got {} bytes of data on stream {}",
                                         read, stream_id
                                     );
@@ -423,7 +430,7 @@ impl Io {
                                         Some(v) => v,
                                         None => {
                                            //error
-                                           println!("Client send data without proper http3 connection !");
+                                           //println!("Client send data without proper http3 connection !");
                                            error!("Client send data without proper http3 connection !");
                                            continue;
                                         }
@@ -477,7 +484,7 @@ impl Io {
 
                 //println!("sending HTTP response {:?}", resp);
                 //println!("{:?}", data);
-                println!("sending HTTP response of size {:?}", data.len());
+                //println!("sending HTTP response of size {:?}", data.len());
                 let client = match clients.get_mut(&id) {
                     Some(v) => v,
                     None => {
@@ -509,7 +516,15 @@ impl Io {
                     },
                 }
             
-                match h3_conn.send_body(conn, stream_id, &data, false) {
+                // If last bytes of data are equal to [218,143,129,7] then its the end of the gRPC response
+                // This an exprimental conclusion, it may not work in all cases.
+                let mut stop = false;
+                let end = data.len();
+                if data[end-4] == 218 && data[end-3] == 143 && data[end-2] == 129 && data[end-1] == 7{
+                    stop = true;
+                }
+
+                match h3_conn.send_body(conn, stream_id, &data, stop) {
                     Ok(v) => v,
             
                     Err(quiche::h3::Error::Done) => 0,
@@ -563,7 +578,7 @@ impl Io {
                 info!("Collecting garbage");
 
                 if c.conn.is_closed() {
-                    println!(
+                    debug!(
                         "{} connection collected {:?}",
                         c.conn.trace_id(),
                         c.conn.stats()
@@ -572,6 +587,11 @@ impl Io {
 
                 !c.conn.is_closed()
             });
+
+            self.clients_tx.retain(|k, _| {
+                clients.contains_key(k)
+            });
+
         }
     }
 
@@ -711,7 +731,8 @@ impl Client {
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
-        println!("Received gRPC message of size: {:?}", msg.len());
+        //println!("Received gRPC message of size: {:?}", msg.len());
+        //println!("Received gRPC message: {:?}", msg);
         self.to_io.send((msg.to_vec(), self.id.clone())).await?;
 
         Ok(())
