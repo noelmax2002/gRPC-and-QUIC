@@ -30,6 +30,10 @@ path = "src/UDP/server_async.rs"
 name = "clientUDP"
 path = "src/UDP/client_async.rs"
 
+[[bin]]
+name = "tests"
+path = "src/tests.rs"
+
 [features]
 tls = ["tonic/tls"]
 

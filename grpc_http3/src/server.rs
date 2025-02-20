@@ -15,12 +15,22 @@ use quiche;
 use ring::rand::*;
 use log::{info,error,debug};
 use std::pin::Pin;
+use docopt::Docopt;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
+
+// Write the Docopt usage string.
+const USAGE: &'static str = "
+Usage: server [options]
+
+Options:
+    -s --sip ADDRESS     Server IPv4 address and port [default: 127.0.0.1:4433].
+    --nocapture         Do not capture the output of the test.
+";
 
 #[derive(Default)]
 pub struct MyGreeter {}
@@ -79,6 +89,7 @@ struct Io {
 
 impl Io {
     async fn run(&mut self) -> Result<()> {
+
         // Main task handling QUIC connections.
         let mut buf = [0; 65535];
         let mut out = [0; MAX_DATAGRAM_SIZE];
@@ -88,8 +99,14 @@ impl Io {
         let mut events = mio::Events::with_capacity(1024);
 //127.0.0.1:4433
 //192.168.1.7:8080
+       
+        //Read from CLI to learn the server/client address.
+        let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
+
+        let server_addr = args.get_str("--sip").to_string();
+       
         // Create the UDP listening socket, and register it with the event loop.
-        let mut socket = mio::net::UdpSocket::bind("127.0.0.1:4433".parse().unwrap()).unwrap();
+        let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
         poll.registry()
             .register(&mut socket, mio::Token(0), mio::Interest::READABLE)
             .unwrap();
@@ -127,7 +144,7 @@ impl Io {
 
         let mut clients = ClientMap::new();
 
-        let local_addr = socket.local_addr().unwrap();
+        //let local_addr = socket.local_addr().unwrap();
 
         let resp = vec![
                     quiche::h3::Header::new(b":status", 200.to_string().as_bytes()),
@@ -221,7 +238,7 @@ impl Io {
 
                         if let Err(e) = socket.send_to(out, from) {
                             if e.kind() == std::io::ErrorKind::WouldBlock {
-                                debug!("send() would block");
+                                println!("send() would block");
                                 break;
                             }
 
@@ -291,6 +308,7 @@ impl Io {
                     */
                     let scid = quiche::ConnectionId::from_vec(scid.to_vec());
 
+                    println!("New Connection from {:?}", from);
                     println!("New connection: dcid={:?} scid={:?}", hdr.dcid, scid);
 
                     let conn = quiche::accept(
@@ -340,7 +358,7 @@ impl Io {
                 if (client.conn.is_in_early_data() || client.conn.is_established()) &&
                     client.http3_conn.is_none() 
                 {
-                    debug!(
+                    println!(
                         "{} QUIC handshake completed, now trying HTTP/3",
                         client.conn.trace_id()
                     );
@@ -724,14 +742,14 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
-        //println!("Client got a message from IO: {:?}", msg);
+        //println!("[SERVER] Client got a message from IO: {:?}", msg);
         self.stream.write(&msg).await?;
         
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
-        //println!("Received gRPC message of size: {:?}", msg.len());
+        //println!("[SERVER] RPC message of size: {:?}", msg.len());
         //println!("Received gRPC message: {:?}", msg);
         self.to_io.send((msg.to_vec(), self.id.clone())).await?;
 
@@ -741,6 +759,12 @@ impl Client {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    launch_server().await?;
+
+    Ok(())
+}
+
+pub async fn launch_server() -> Result<()> {
     let (to_tonic, from_tonic) =
         mpsc::unbounded_channel::<std::result::Result<DuplexStream, String>>();
     let greeter = MyGreeter::default(); //Define the gRPC service.

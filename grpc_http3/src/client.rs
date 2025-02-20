@@ -14,6 +14,7 @@ use log::{info, error, debug};
 use tokio::time::Duration;
 use tokio::time::sleep;
 use std::time::{SystemTime, UNIX_EPOCH};
+use docopt::Docopt;
 
 use quiche::h3::NameValue;
 
@@ -27,11 +28,25 @@ pub mod hello_world {
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+// Write the Docopt usage string.
+const USAGE: &'static str = "
+Usage: client [options]
+
+Options:
+    -s --sip ADDRESS     Server IPv4 address and port [default: 127.0.0.1:4433].
+";
+
 #[tokio::main]
 async fn main() -> Result<()> {
-//127.0.0.1:4433
-//192.168.1.7:8080"
-    let channel = Endpoint::from_static("https://127.0.0.1:4433") 
+
+    //Read from CLI to learn the server/client address.
+    let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
+    let mut server_addr = args.get_str("--sip").to_string();
+
+    //127.0.0.1:4433
+    //192.168.1.7:8080"
+
+    let channel = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
         .connect_with_connector_lazy(service_fn(|uri: Uri| async {
             let (client, server) = tokio::io::duplex(12000);
             task::spawn(async move {
@@ -96,7 +111,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Receiver<Vec<u8>>,) -> Result<()> {
+pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Receiver<Vec<u8>>,) -> Result<()> {
   
     // ----- QUIC Connection -----
     let mut buf = [0; 65535];
@@ -111,7 +126,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
     // Create the UDP socket backing the QUIC connection, and register it with
     // the event loop.
     let mut socket =
-        mio::net::UdpSocket::bind("0.0.0.0:0".parse().unwrap()).unwrap();
+        mio::net::UdpSocket::bind("127.0.0.1:0".parse().unwrap()).unwrap();
     poll.registry()
         .register(&mut socket, mio::Token(0), mio::Interest::READABLE)
         .unwrap();
@@ -153,7 +168,7 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
         quiche::connect(None, &scid, peer_addr, &mut config)
             .unwrap();
 
-    debug!(
+    println!(
         "connecting to {:} from {:} with scid {}",
         peer_addr,
         socket.local_addr().unwrap(),
@@ -255,11 +270,12 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
                     Err(e) => {
                         if e == mpsc::error::TryRecvError::Empty {
                             //sleep(Duration::from_millis(1)).await;
-                            sleep(Duration::new(0,10)).await;
+                            sleep(Duration::new(0,1)).await;
                             break;
                         }
 
-                        panic!("recv() failed: {:?}", e);
+                        println!("recv() failed: {:?}", e);
+                        break;
                     },
                 };
   
@@ -371,15 +387,15 @@ async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: Recei
     }
 }
 
-struct Client {
-    stream: DuplexStream,
-    to_io: Sender<Vec<u8>>,
-    from_io: Receiver<Vec<u8>>,
+pub struct Client {
+    pub stream: DuplexStream,
+    pub to_io: Sender<Vec<u8>>,
+    pub from_io: Receiver<Vec<u8>>,
 }
 
 impl Client {
     // Handle the communication between Quic (synchronous) thread and gRPC (asynchronous) thread.
-    async fn run(&mut self) -> Result<()> {
+    pub async fn run(&mut self) -> Result<()> {
         let mut buf = [0u8; 1500];
         loop {
             tokio::select! {
@@ -391,7 +407,7 @@ impl Client {
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("Received IO message: {:?}", msg);
-        //println!("Received IO message of size: {:?}", msg.len());
+        //println!("[CLIENT] Received IO message of size: {:?}", msg.len());
         self.stream.write(&msg).await?;
         
         Ok(())
@@ -400,7 +416,7 @@ impl Client {
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
         //println!("Received gRPC message: {:?}", msg);
         //println!("Size of msg : {:?}", msg.len());
-        //println!("Received gRPC message of size: {:?}", msg.len());
+        //println!("[CLIENT] Received gRPC message of size: {:?}", msg.len());
         self.to_io.send(msg.to_vec()).await?;
 
         Ok(())
@@ -425,7 +441,7 @@ pub fn hdrs_to_strings(hdrs: &[quiche::h3::Header]) -> Vec<(String, String)> {
 }
 
 
-
+/*
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
@@ -480,6 +496,4 @@ mod tests {
         Ok(())
     }
 }
-
-
-
+ */
