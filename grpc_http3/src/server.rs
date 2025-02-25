@@ -1,8 +1,12 @@
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{transport::Server, Request, Response, Status, Streaming};
 
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
+use echo::{EchoRequest, EchoResponse};
+use filetransfer::file_service_server::{FileService, FileServiceServer};
+use filetransfer::{FileData, FileRequest, UploadResponse};
 
+use tokio::fs::File;
 use std::collections::HashMap;
 use std::net;
 use tokio::io::DuplexStream;
@@ -16,6 +20,10 @@ use ring::rand::*;
 use log::{info,error,debug};
 use std::pin::Pin;
 use docopt::Docopt;
+use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
+use std::{error::Error, io::ErrorKind, time::Duration};
+use tokio::time::sleep;
+
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -23,13 +31,25 @@ pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
+pub mod echo {
+    tonic::include_proto!("echo");
+}
+
+pub mod filetransfer {
+    tonic::include_proto!("filetransfer");
+}
+
 // Write the Docopt usage string.
 const USAGE: &'static str = "
 Usage: server [options]
 
 Options:
-    -s --sip ADDRESS     Server IPv4 address and port [default: 127.0.0.1:4433].
-    --nocapture         Do not capture the output of the test.
+    -s --sip ADDRESS       Server IPv4 address and port [default: 127.0.0.1:4433].
+    --nocapture            Do not capture the output of the test.
+    -p --proto PROTOCOL    ProtoBuf to use [default: helloworld].
+    --timeout TIMEOUT   Idle timeout of the QUIC connection in milliseconds [default: 5000].
+    -e --early             Enable 0-RTT.
+    -t --token             Enable stateless retry token.
 ";
 
 #[derive(Default)]
@@ -104,6 +124,9 @@ impl Io {
         let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
 
         let server_addr = args.get_str("--sip").to_string();
+        let idel_timeout = args.get_str("--timeout").parse::<u64>().unwrap();
+        let early_data = args.get_bool("--early");
+        let stateless_retry = args.get_bool("--token");
        
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
@@ -125,17 +148,21 @@ impl Io {
             .set_application_protos(quiche::h3::APPLICATION_PROTOCOL)
             .unwrap();
 
-        config.set_max_idle_timeout(5000);
+        config.set_max_idle_timeout(idel_timeout);
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_initial_max_data(10_000_000);
-        config.set_initial_max_stream_data_bidi_local(1_000_000);
-        config.set_initial_max_stream_data_bidi_remote(1_000_000);
-        config.set_initial_max_stream_data_uni(1_000_000);
+        config.set_initial_max_stream_data_bidi_local(1_000_000_000);
+        config.set_initial_max_stream_data_bidi_remote(1_000_000_000);
+        config.set_initial_max_stream_data_uni(1_000_000_000);
         config.set_initial_max_streams_bidi(100);
         config.set_initial_max_streams_uni(100);
         config.set_disable_active_migration(true);
-        config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
+        if early_data {
+            println!("Enabling 0-RTT");
+            config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
+        }
+       
 
         let h3_config = quiche::h3::Config::new().unwrap();
 
@@ -194,7 +221,7 @@ impl Io {
                     },
                 };
 
-                debug!("got {} bytes from {:?}", len, from);
+                info!("got {} bytes from {:?}", len, from);
 
                 let pkt_buf = &mut buf[..len];
 
@@ -252,62 +279,63 @@ impl Io {
 
                     let scid = quiche::ConnectionId::from_ref(&scid);
 
-                    let odcid = None;
+                    let mut odcid = None;
 
-                    /*
-                    // Token is always present in Initial packets.
-                    let token = hdr.token.as_ref().unwrap();
+                    if stateless_retry {
+                        // Token is always present in Initial packets.
+                        let token = hdr.token.as_ref().unwrap();
 
-                    // Do stateless retry if the client didn't send a token.
-                    if token.is_empty() {
-                        info!("Doing stateless retry");
+                        // Do stateless retry if the client didn't send a token.
+                        if token.is_empty() {
+                            info!("Doing stateless retry");
 
-                        let new_token = Self::mint_token(&hdr, &from);
+                            let new_token = Self::mint_token(&hdr, &from);
 
-                        let len = quiche::retry(
-                            &hdr.scid,
-                            &hdr.dcid,
-                            &scid,
-                            &new_token,
-                            hdr.version,
-                            &mut out,
-                        )
-                        .unwrap();
+                            let len = quiche::retry(
+                                &hdr.scid,
+                                &hdr.dcid,
+                                &scid,
+                                &new_token,
+                                hdr.version,
+                                &mut out,
+                            )
+                            .unwrap();
 
-                        let out = &out[..len];
+                            let out = &out[..len];
 
-                        if let Err(e) = socket.send_to(out, from) {
-                            if e.kind() == std::io::ErrorKind::WouldBlock {
-                                debug!("send() would block");
-                                break;
+                            if let Err(e) = socket.send_to(out, from) {
+                                if e.kind() == std::io::ErrorKind::WouldBlock {
+                                    debug!("send() would block");
+                                    break;
+                                }
+
+                                panic!("send() failed: {:?}", e);
                             }
-
-                            panic!("send() failed: {:?}", e);
+                            continue 'read;
                         }
-                        continue 'read;
-                    }
 
-                    let odcid = Self::validate_token(&from, token);
+                        let odcid = Self::validate_token(&from, token);
 
-                    // The token was not valid, meaning the retry failed, so
-                    // drop the packet.
-                    if odcid.is_none() {
-                        error!("Invalid address validation token");
-                        continue 'read;
+                        // The token was not valid, meaning the retry failed, so
+                        // drop the packet.
+                        if odcid.is_none() {
+                            error!("Invalid address validation token");
+                            continue 'read;
+                        } 
+
+                        if scid.len() != hdr.dcid.len() {
+                            error!("Invalid destination connection ID");
+                            continue 'read;
+                        }
+
+                        // Reuse the source connection ID we sent in the Retry packet,
+                        // instead of changing it again.
+                        let scid = hdr.dcid.clone();
                     } 
-
-                    if scid.len() != hdr.dcid.len() {
-                        error!("Invalid destination connection ID");
-                        continue 'read;
-                    }
-
-                    // Reuse the source connection ID we sent in the Retry packet,
-                    // instead of changing it again.
-                    let scid = hdr.dcid.clone();
                     
-                    */
                     let scid = quiche::ConnectionId::from_vec(scid.to_vec());
-
+                    
+                
                     println!("New Connection from {:?}", from);
                     println!("New connection: dcid={:?} scid={:?}", hdr.dcid, scid);
 
@@ -407,6 +435,7 @@ impl Io {
                                 new_client.run().await.unwrap();
                             });
                             //sleep(Duration::from_millis(10)).await;
+                            sleep(Duration::new(0,1)).await;
             
                             // Notify gRPC of the new client.
                             self.to_grpc.send(Ok(from_client))?;
@@ -455,6 +484,8 @@ impl Io {
                                     };
                                     client_tx.send(buf[..read].to_vec()).await?;
                                     //sleep(Duration::from_millis(1)).await;
+                                    sleep(Duration::new(0,10)).await;
+
                                 }
                                 //client.conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0).unwrap();
                             },
@@ -538,8 +569,8 @@ impl Io {
                 // This an exprimental conclusion, it may not work in all cases.
                 let mut stop = false;
                 let end = data.len();
-                if data[end-4] == 218 && data[end-3] == 143 && data[end-2] == 129 && data[end-1] == 7{
-                    stop = true;
+                if end >= 4 && data[end-4] == 218 && data[end-3] == 143 && data[end-2] == 129 && data[end-1] == 7{
+                    stop = false;
                 }
 
                 match h3_conn.send_body(conn, stream_id, &data, stop) {
@@ -596,7 +627,7 @@ impl Io {
                 info!("Collecting garbage");
 
                 if c.conn.is_closed() {
-                    debug!(
+                    println!(
                         "{} connection collected {:?}",
                         c.conn.trace_id(),
                         c.conn.stats()
@@ -767,17 +798,9 @@ async fn main() -> Result<()> {
 pub async fn launch_server() -> Result<()> {
     let (to_tonic, from_tonic) =
         mpsc::unbounded_channel::<std::result::Result<DuplexStream, String>>();
-    let greeter = MyGreeter::default(); //Define the gRPC service.
-
+    
     // To let clients communicate with the main thread.
     let (tx, rx) = mpsc::channel(1000);
-
-    /* 
-    let addr: SocketAddr = "127.0.0.1:4433".parse().unwrap();
-    println!("GreeterServer listening on {:?}", addr);
-
-    let socket = UdpSocket::bind(addr).await?;
-    */
 
     let mut io = Io {
         clients_tx: HashMap::new(),
@@ -786,18 +809,239 @@ pub async fn launch_server() -> Result<()> {
         to_grpc: to_tonic,
     };
 
+    let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
+    let proto = args.get_str("--proto").to_string();
+    
     // Create tonic server builder.
-    task::spawn(async move {
-        Server::builder()
-            .add_service(GreeterServer::new(greeter))
-            .serve_with_incoming(tokio_stream::wrappers::UnboundedReceiverStream::new(
-                from_tonic,
-            ))
-            .await
-            .unwrap();
-    });
+    if proto == "helloworld" {
+        let greeter = MyGreeter::default(); //Define the gRPC service.
+        task::spawn(async move {
+            Server::builder()
+                .add_service(GreeterServer::new(greeter))
+                .serve_with_incoming(tokio_stream::wrappers::UnboundedReceiverStream::new(
+                    from_tonic,
+                ))
+                .await
+                .unwrap();
+        });
+    } else if proto == "echo" {
+        let echo = EchoServer {};
+        task::spawn(async move {
+            Server::builder()
+                .add_service(echo::echo_server::EchoServer::new(echo))
+                .serve_with_incoming(tokio_stream::wrappers::UnboundedReceiverStream::new(
+                    from_tonic,
+                ))
+                .await
+                .unwrap();
+        });
+
+    } else if proto == "filetransfer" {
+        let file_service = MyFileService::default();
+        task::spawn(async move {
+            Server::builder()
+                .add_service(FileServiceServer::new(file_service))
+                .serve_with_incoming(tokio_stream::wrappers::UnboundedReceiverStream::new(
+                    from_tonic,
+                ))
+                .await
+                .unwrap();
+        });
+    } else {
+        panic!("Unknown protocol: {:?}", proto);
+    }
+
+    
 
     io.run().await?;
 
     Ok(())
 }
+
+//Code from tonic/examples/src/streaming/server.rs
+type EchoResult<T> = std::result::Result<Response<T>, Status>;
+type ResponseStream = Pin<Box<dyn Stream<Item = std::result::Result<EchoResponse, Status>> + Send>>;
+
+fn match_for_io_error(err_status: &Status) -> Option<&std::io::Error> {
+    let mut err: &(dyn Error + 'static) = err_status;
+
+    loop {
+        if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
+            return Some(io_err);
+        }
+        err = match err.source() {
+            Some(err) => err,
+            None => return None,
+        };
+    }
+}
+
+#[derive(Debug)]
+pub struct EchoServer {}
+
+#[tonic::async_trait]
+impl echo::echo_server::Echo for EchoServer {
+    async fn unary_echo(&self, _: Request<EchoRequest>) -> EchoResult<EchoResponse> {
+        Err(Status::unimplemented("not implemented"))
+    }
+
+    type ServerStreamingEchoStream = ResponseStream;
+
+    async fn server_streaming_echo(
+        &self,
+        req: Request<EchoRequest>,
+    ) -> EchoResult<Self::ServerStreamingEchoStream> {
+        println!("EchoServer::server_streaming_echo");
+        println!("\tclient connected from: {:?}", req.remote_addr());
+
+        // creating infinite stream with requested message
+        let repeat = std::iter::repeat(EchoResponse {
+            message: req.into_inner().message,
+        });
+        let mut stream = Box::pin(tokio_stream::iter(repeat).throttle(Duration::from_millis(200)));
+
+        // spawn and channel are required if you want handle "disconnect" functionality
+        // the `out_stream` will not be polled after client disconnect
+        let (tx, rx) = mpsc::channel(128);
+        tokio::spawn(async move {
+            while let Some(item) = stream.next().await {
+                match tx.send(std::result::Result::<_, Status>::Ok(item)).await {
+                    Ok(_) => {
+                        // item (server response) was queued to be send to client
+                    }
+                    Err(_item) => {
+                        // output_stream was build from rx and both are dropped
+                        break;
+                    }
+                }
+            }
+            println!("\tclient disconnected");
+        });
+
+        let output_stream = ReceiverStream::new(rx);
+        Ok(Response::new(
+            Box::pin(output_stream) as Self::ServerStreamingEchoStream
+        ))
+    }
+
+    async fn client_streaming_echo(
+        &self,
+        _: Request<Streaming<EchoRequest>>,
+    ) -> EchoResult<EchoResponse> {
+        Err(Status::unimplemented("not implemented"))
+    }
+
+    type BidirectionalStreamingEchoStream = ResponseStream;
+
+    async fn bidirectional_streaming_echo(
+        &self,
+        req: Request<Streaming<EchoRequest>>,
+    ) -> EchoResult<Self::BidirectionalStreamingEchoStream> {
+        println!("EchoServer::bidirectional_streaming_echo");
+
+        let mut in_stream = req.into_inner();
+        let (tx, rx) = mpsc::channel(128);
+
+        // this spawn here is required if you want to handle connection error.
+        // If we just map `in_stream` and write it back as `out_stream` the `out_stream`
+        // will be dropped when connection error occurs and error will never be propagated
+        // to mapped version of `in_stream`.
+        tokio::spawn(async move {
+            while let Some(result) = in_stream.next().await {
+                match result {
+                    Ok(v) => tx
+                        .send(Ok(EchoResponse { message: v.message }))
+                        .await
+                        .expect("working rx"),
+                    Err(err) => {
+                        if let Some(io_err) = match_for_io_error(&err) {
+                            if io_err.kind() == ErrorKind::BrokenPipe {
+                                // here you can handle special case when client
+                                // disconnected in unexpected way
+                                eprintln!("\tclient disconnected: broken pipe");
+                                break;
+                            }
+                        }
+
+                        match tx.send(Err(err)).await {
+                            Ok(_) => (),
+                            Err(_err) => break, // response was dropped
+                        }
+                    }
+                }
+            }
+            println!("\tstream ended");
+        });
+
+        // echo just write the same data that was received
+        let out_stream = ReceiverStream::new(rx);
+
+        Ok(Response::new(
+            Box::pin(out_stream) as Self::BidirectionalStreamingEchoStream
+        ))
+    }
+}
+
+#[derive(Default)]
+pub struct MyFileService;
+
+#[tonic::async_trait]
+impl FileService for MyFileService {
+    /// Handles file upload as a single `bytes` field
+    async fn upload_file(
+        &self,
+        request: Request<FileData>,
+    ) -> std::result::Result<Response<UploadResponse>, Status> {
+        let file = request.into_inner();
+        let mut new_file = File::create(file.filename).await.map_err(|e| Status::internal(e.to_string()))?;
+        new_file.write_all(&file.data).await.map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(UploadResponse { message: "File uploaded successfully".into() }))
+    }
+
+    /// Handles file download as a single `bytes` field
+    async fn download_file(
+        &self,
+        request: Request<FileRequest>,
+    ) -> std::result::Result<Response<FileData>, Status> {
+        let filename = request.into_inner().filename;
+        let mut file = File::open(&filename).await.map_err(|e| Status::not_found(e.to_string()))?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).await.map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(FileData { filename, data: buffer }))
+    }
+}
+
+/// Validates a stateless retry token.
+///
+/// This checks that the ticket includes the `"quiche"` static string, and that
+/// the client IP address matches the address stored in the ticket.
+///
+/// Note that this function is only an example and doesn't do any cryptographic
+/// authenticate of the token. *It should not be used in production system*.
+fn validate_token<'a>(
+    src: &net::SocketAddr, token: &'a [u8],
+) -> Option<quiche::ConnectionId<'a>> {
+    if token.len() < 6 {
+        return None;
+    }
+
+    if &token[..6] != b"quiche" {
+        return None;
+    }
+
+    let token = &token[6..];
+
+    let addr = match src.ip() {
+        std::net::IpAddr::V4(a) => a.octets().to_vec(),
+        std::net::IpAddr::V6(a) => a.octets().to_vec(),
+    };
+
+    if token.len() < addr.len() || &token[..addr.len()] != addr.as_slice() {
+        return None;
+    }
+
+    Some(quiche::ConnectionId::from_ref(&token[addr.len()..]))
+}
+
