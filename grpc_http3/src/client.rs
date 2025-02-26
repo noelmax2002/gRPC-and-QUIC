@@ -21,7 +21,8 @@ use tokio::time::sleep;
 use std::time::{SystemTime, UNIX_EPOCH};
 use docopt::Docopt;
 use tonic::transport::Channel;
-use tokio::fs::File;
+use tokio::fs::{self,File};
+
 
 use quiche::h3::NameValue;
 
@@ -53,6 +54,7 @@ Options:
     -t --timeout TIMEOUT            Idle timeout of the QUIC connection in milliseconds [default: 500000].
     -e --early                      Enable sending early data.
     -r --connetion-resumption       Enable connection resumption.
+    --poll-timeout TIMEOUT          Timeout for polling the event loop in milliseconds [default: 500].
     --nocapture                     Do not capture the output of the test.
 ";
 
@@ -100,29 +102,26 @@ async fn main() -> Result<()> {
         bidirectional_streaming_echo(&mut client, 50).await;
     } else if proto.as_str() == "helloworld" {
         let mut client = GreeterClient::new(channel);
+
         let request = tonic::Request::new(HelloRequest {
             name: "Maxime".into(),
         });
+        
+    
         let response = client.say_hello(request).await.unwrap();
-        println!("RESPONSE={:?}", response);
-        /*
-        let request2 = tonic::Request::new(HelloRequest {
-            name: "Guillaume".into(),
-        });
-        let response2 = client.say_hello(request2).await.unwrap();
-        println!("RESPONSE={:?}", response); */
+        println!("response: {:?}", response.get_ref().message);
 
     } else if proto.as_str() == "filetransfer" {
         let mut client = FileServiceClient::new(channel);
 
         // Upload a file
-        let file_path = "./swift_file_examples/small.txt";
+        let file_path = "./swift_file_examples/big.txt";
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
 
         let request = tonic::Request::new(FileData {
-            filename: "uploaded_example.txt".into(),
+            filename: "uploaded_example".into(),
             data: buffer,
         });
 
@@ -131,11 +130,11 @@ async fn main() -> Result<()> {
 
         // Download a file
         let request = tonic::Request::new(FileRequest {
-            filename: "uploaded_example.txt".into(),
+            filename: "uploaded_example".into(),
         });
 
         let response = client.download_file(request).await?.into_inner();
-        let mut new_file = File::create("downloaded_example.txt").await?;
+        let mut new_file = File::create("downloaded_example").await?;
         new_file.write_all(&response.data).await?;
 
         println!("File downloaded successfully!");
@@ -144,31 +143,8 @@ async fn main() -> Result<()> {
         panic!("Invalid protoBuf");
     }
         
-
-
     let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     println!("Time elapsed: {:?}", end - start);
-
-    /*
-    let request2 = tonic::Request::new(HelloRequest {
-        name: "Guillaume".into(),
-    }); */
-   
-   /* 
-    let join_handle: task::JoinHandle<()> = tokio::spawn(async move {
-        let response = client.say_hello(request).await.unwrap();
-        println!("RESPONSE={:?}", response);
-    }); 
-
-    
-    let join_handle2: task::JoinHandle<()> = tokio::spawn(async move {
-        let response = client2.say_hello(request2).await.unwrap();
-        println!("RESPONSE={:?}", response);
-    }); 
-
-    join_handle.await?;
-    join_handle2.await?;
-    */
 
     Ok(())
 }
@@ -178,9 +154,9 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
     let idle_timeout = args.get_str("--timeout").parse::<u64>().unwrap();
     let early_data = args.get_bool("--early");
     let connection_resumption = args.get_bool("--connection-resumption");
+    let poll_timeout = args.get_str("--poll-timeout").parse::<u64>().unwrap();
     
     loop { 
-        println!("Global Loop");
         // ----- QUIC Connection -----
         let mut buf = [0; 65535];
         let mut out = [0; MAX_DATAGRAM_SIZE];
@@ -225,7 +201,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             config.enable_early_data();
         }
 
-        let mut http3_conn = None;
+        let mut http3_conn: Option<quiche::h3::Connection> = None;
 
         // Generate a random source connection ID for the connection.
         let mut scid = [0; quiche::MAX_CONN_ID_LEN];
@@ -278,7 +254,10 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
         loop {
             if !conn.is_in_early_data() {
-                poll.poll(&mut events, conn.timeout()).unwrap();
+                if poll_timeout == 0 {
+                    poll.poll(&mut events, conn.timeout()).unwrap();
+                }
+                poll.poll(&mut events, Some(Duration::from_millis(poll_timeout))).unwrap();
             }
 
             // Read incoming UDP packets from the socket and feed them to quiche,
@@ -288,7 +267,6 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 // has expired, so handle it without attempting to read packets. We
                 // will then proceed with the send loop.
                 if events.is_empty() {
-                    //println!("timed out");
 
                     conn.on_timeout();
 
@@ -304,9 +282,12 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         if e.kind() == std::io::ErrorKind::WouldBlock {
                             debug!("recv() would block");
                             break 'read;
-                        }
+                        } 
 
-                        panic!("recv() failed: {:?}", e);
+                       println!("recv() failed: {:?}", e);
+                       break;
+
+                        //panic!("recv() failed: {:?}", e);
                     },
                 };
 
@@ -344,6 +325,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 }
 
                 if from_client.is_closed() {
+                    println!("Connection to client IO is closed");
                     return Ok(());
                 } else {
                     //Begin again the connection
@@ -369,7 +351,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             if let Some(h3_conn) = &mut http3_conn {
                 loop{
                     let data = match from_client.try_recv() {
-                        Ok(v) => v,
+                        Ok(v) => {
+                            v },
                         Err(e) => {
                             if e == mpsc::error::TryRecvError::Empty {
                                 //sleep(Duration::from_millis(1)).await;
@@ -377,14 +360,16 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                                 break;
                             }
 
-                            println!("recv() failed: {:?}", e);
-                            break;
+                            //println!("recv() failed: {:?}", e);
+                            return Ok(());
                         },
                     };
     
                     //println!("sending HTTP request {:?}", req);
+                    println!("sending HTTP data of size {:?}", data.len());
                     //println!("{:?}", data);
                     let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
+                    println!("stream_id: {:?}", stream_id);
                     h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
                 }
 
@@ -410,7 +395,9 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                                     "got {} bytes of response data on stream {}",
                                     read, stream_id
                                 );
-
+                                if to_client.is_closed() {
+                                    return Ok(());
+                                }
                                 to_client.send(buf[..read].to_vec()).await?;
                                 sleep(Duration::new(0,1)).await;
                             }
@@ -510,6 +497,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 //return Ok(());
             }
         }
+        fs::remove_file("./session_file.bin").await?;
     }
 }
 
@@ -526,8 +514,19 @@ impl Client {
         loop {
             tokio::select! {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
-                Ok(len) = self.stream.read(&mut buf[..]) => self.handle_grpc_msg(&buf[..len]).await?,
+                Ok(len) = self.stream.read(&mut buf[..]) => {
+                    if len == 0 {
+                        return Ok(());
+                    }
+
+                    self.handle_grpc_msg(&buf[..len]).await?
+                },
             }
+
+            if self.from_io.is_closed() {
+                return Ok(());
+            }
+
         }
     }
 

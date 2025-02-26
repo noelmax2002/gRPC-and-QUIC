@@ -44,12 +44,13 @@ const USAGE: &'static str = "
 Usage: server [options]
 
 Options:
-    -s --sip ADDRESS       Server IPv4 address and port [default: 127.0.0.1:4433].
-    --nocapture            Do not capture the output of the test.
-    -p --proto PROTOCOL    ProtoBuf to use [default: helloworld].
-    --timeout TIMEOUT   Idle timeout of the QUIC connection in milliseconds [default: 5000].
-    -e --early             Enable 0-RTT.
-    -t --token             Enable stateless retry token.
+    -s --sip ADDRESS        Server IPv4 address and port [default: 127.0.0.1:4433].
+    --nocapture             Do not capture the output of the test.
+    -p --proto PROTOCOL     ProtoBuf to use [default: helloworld].
+    --timeout TIMEOUT       Idle timeout of the QUIC connection in milliseconds [default: 5000].
+    -e --early              Enable 0-RTT.
+    --poll-timeout TIMOUT   Timeout for polling the event loop in milliseconds [default: 500].
+    -t --token              Enable stateless retry token.
 ";
 
 #[derive(Default)]
@@ -127,6 +128,7 @@ impl Io {
         let idel_timeout = args.get_str("--timeout").parse::<u64>().unwrap();
         let early_data = args.get_bool("--early");
         let stateless_retry = args.get_bool("--token");
+        let poll_timeout = args.get_str("--poll-timeout").parse::<u64>().unwrap();
        
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
@@ -182,9 +184,12 @@ impl Io {
             // Find the shorter timeout from all the active connections.
             //
             // TODO: use event loop that properly supports timers
-            let mut timeout = clients.values().filter_map(|c| c.conn.timeout()).min();
-
-            poll.poll(&mut events, timeout).unwrap();
+            if poll_timeout == 0 {
+                let mut timeout = clients.values().filter_map(|c| c.conn.timeout()).min();
+                poll.poll(&mut events, timeout).unwrap();
+            } else {
+                poll.poll(&mut events, Some(Duration::from_millis(poll_timeout))).unwrap();
+            }
 
             // Read incoming UDP packets from the socket and feed them to quiche,
             // until there are no more packets to read.
@@ -767,20 +772,33 @@ impl Client {
         loop {
             tokio::select! {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
-                Ok(len) = self.stream.read(&mut buf[..]) => self.handle_grpc_msg(&buf[..len]).await?,
+                Ok(len) = self.stream.read(&mut buf[..]) => {
+                    if len == 0 {
+                        return Ok(());
+                    }
+
+                    self.handle_grpc_msg(&buf[..len]).await?
+                },
             }
+
+            if self.from_io.is_closed() {
+                return Ok(());
+            }
+
         }
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("[SERVER] Client got a message from IO: {:?}", msg);
+        //println!("[SERVER] Received IO message of size: {:?}", msg.len());
+
         self.stream.write(&msg).await?;
         
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
-        //println!("[SERVER] RPC message of size: {:?}", msg.len());
+        //println!("[SERVER] gRPC message of size: {:?}", msg.len());
         //println!("Received gRPC message: {:?}", msg);
         self.to_io.send((msg.to_vec(), self.id.clone())).await?;
 

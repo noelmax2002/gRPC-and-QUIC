@@ -1,24 +1,758 @@
-{1:F01DEUTDEFFXXXX1234567890}{2:O1030953230523NORDDKKKXXXX12345678932305230953N}{3:{108:ILOVESEPA1234567890}}
-{4:
-:20:TXNREF1234567890
-:23B:CRED
-:32A:230523EUR100000,50
-:50K:/12345678
-JOHN DOE
-123, FAKE STREET
-FAKETOWN
-:52A:DEUTDEFFXXX
-:53B:/DE12345678901234567890
-:54A:CHASUS33XXX
-:56C:IRVTUS3NXXX
-:57A:NORDDKKKXXX
-:59:/DK5000400440116243
-JANE SMITH
-789, REAL ROAD
-REALVILLE
-:70:PAYMENT FOR INVOICE 998877
-:71A:OUR
-:72:/ACC/RENT/MAY
-/INV/998877
--}
-{5:{CHK:123456789ABC}{TNG:}}
+
+
+Wikipédial'encyclopédie libre
+Rechercher sur Wikipédia
+Rechercher
+Faire un don
+Créer un compte
+Se connecter
+
+Photographiez votre culture locale, aidez Wikipédia et gagnez des prix !
+Réduire
+Sommaire masquer
+Début
+Univers
+
+Films
+
+Critiques
+
+Univers étendu
+
+Inspirations
+
+Postérité
+
+Notes et références
+
+Annexes
+
+Star Wars
+
+Article
+Discussion
+Lire
+Modifier
+Modifier le code
+Voir l’historique
+
+Outils
+Apparence masquer
+Taille du texte
+
+Petite
+
+Standard
+
+Grande
+Largeur
+
+Standard
+
+Large
+Couleur (bêta)
+
+Automatique
+
+Clair
+
+Sombre
+Wikipédia:Articles de qualité	
+Vous lisez un « article de qualité » labellisé en 2012.
+
+Page d’aide sur l’homonymie	
+Pour les articles homonymes, voir Star Wars (homonymie) et Guerre des étoiles.
+
+Star Wars
+Description de cette image, également commentée ci-après
+Le logotype de Star Wars tel qu'il apparaît en introduction des films de la saga et sur de nombreux produits dérivés.
+Univers de fiction
+Genre(s)	Science-fiction
+(sous-genre space fantasy1)
+Auteur(s)	George Lucas
+Année de création	1977
+Pays d’origine	Drapeau des États-Unis États-Unis
+Langue d’origine	Anglais
+Support d’origine	Cinéma
+Autre(s) support(s)	
+Roman
+Bande dessinée
+Dessin animé
+Jeu de rôle
+Jeu de société
+Jeux vidéo
+Jeu de figurines
+Figurines
+Musiques
+Séries télévisées
+Projet / Portail
+
+modifier
+
+Star Wars ([stɑɹ wɔɹz]a), en français La Guerre des étoiles, est un univers de science-fiction de type space fantasy créé par le réalisateur, scénariste et producteur américain George Lucas.
+
+L'univers Star Wars s'articule principalement autour de neuf films, sortis au cinéma entre 1977 et 2019 : Star Wars, épisode I : La Menace fantôme (1999), Star Wars, épisode II : L'Attaque des clones (2002), Star Wars, épisode III : La Revanche des Sith (2005), Star Wars, épisode IV : Un nouvel espoir (1977), Star Wars, épisode V : L'Empire contre-attaque (1980), Star Wars, épisode VI : Le Retour du Jedi (1983), Star Wars, épisode VII : Le Réveil de la Force (2015), Star Wars, épisode VIII : Les Derniers Jedi (2017) et Star Wars, épisode IX : L'Ascension de Skywalker (2019)b. George Lucas a réalisé lui-même les épisodes I à IV.
+
+L'action de ces films se déroule « dans une galaxie lointaine, très lointaine » où les humains cohabitent avec de nombreuses espèces extraterrestres, à une époque indéterminéec. La trame repose sur l'affrontement entre les chevaliers Jedi et leurs rivaux, les seigneurs Sith. Les chevaliers Jedi comme les seigneurs Sith sont sensibles à la Force, un champ énergétique mystérieux qui leur procure des pouvoirs psychiques, notamment des pouvoirs de télékinésie. Les Jedi maîtrisent le Côté lumineux de la Force, pouvoir bénéfique et défensif, pour maintenir la paix, tandis que les Sith utilisent le Côté obscur, pouvoir nuisible et destructeur, pour leurs usages personnels et pour dominer la galaxie.
+
+Le récit suit principalement le parcours d'Anakin Skywalker, un chevalier Jedi tiraillé entre le Bien et le Mal, et de ses descendants, sur plusieurs générations. L'intrigue fait également intervenir de nombreux autres personnages comme Obi-Wan Kenobi, un autre chevalier Jedi, Sheev Palpatine, un homme politique ambitieux et manipulateur, ou encore Han Solo, un contrebandier sans état d'âme.
+
+Outre les neuf films précités, la franchise Star Wars a également fait l'objet de plusieurs films dérivés ayant pour cadre le même univers de fiction, mais sans avoir nécessairement de lien direct avec l'histoire de la famille Skywalker. Par exemple, le film Solo (2018) met en scène l'histoire du personnage de Han Solo avant sa rencontre avec le jeune Luke Skywalker (rencontre qui a lieu dans l'épisode IV, Un nouvel espoir). De même, le film d'animation The Clone Wars (2008) met en scène une intrigue située chronologiquement entre les épisodes II et III.
+
+Star Wars s'inspire de nombreuses œuvres cinématographiques (films à épisodes, western, cinéma japonais), mais aussi littéraires (essentiellement les ouvrages d'Edgar Rice Burroughs, de Frank Herbert, de Joseph Campbell, mais aussi d'Isaac Asimov et de J. R. R. Tolkien) et de faits historiques réels. À leur tour, les films de la saga Star Wars ont influencé une génération de réalisateurs et contribué à la création de nouvelles techniques dans le domaine du cinéma, notamment en ce qui concerne le montage, les bruitages et les effets spéciaux. Figurant parmi les plus gros succès financiers de l'histoire du cinéma, ils ont popularisé des acteurs comme Harrison Ford ou Natalie Portman et donné naissance à une importante communauté de fans, qui s'exprime par le biais de diverses manifestations telles que la Star Wars Celebration.
+
+Outre les films, la franchise Star Wars a engendré de nombreux produits dérivés et autres déclinaisons sur différents supports : romans, bandes dessinées, jeux vidéo, séries télévisées, etc., qui ont contribué à approfondir l'univers imaginé par George Lucas. Depuis 2012, les droits d'auteur de Star Wars sont détenus par la Walt Disney Company.
+
+Univers
+L'histoire de Star Wars, se déroule dans une galaxie qui est le théâtre d'affrontements entre les Chevaliers Jedi et les Seigneurs Sith, personnes antagonistes sensibles à la Force, un champ énergétique mystérieux leur procurant des pouvoirs psychiques. Les Jedi maîtrisent le Côté lumineux de la Force, pouvoir bénéfique et défensif, pour maintenir la paix dans la galaxie. Les Sith utilisent le Côté obscur, pouvoir nuisible et destructeur, pour leurs usages personnels et pour dominer la galaxie2.
+
+Histoires
+Article détaillé : Histoire fictive de Star Wars.
+
+La galaxie de Star Wars a fait l'objet de cartes dressées par les fans.
+Depuis le rachat de la société Lucasfilm par The Walt Disney Company, il existe deux canons Star Wars : le « Légendes » et l'« officiel ». Ils ont pour point commun les six premiers films et la série télévisée Star Wars: The Clone Wars. L'univers Légendes reprend en plus les histoires complémentaires présentées dans des livres, des bandes dessinées, des téléfilms ou des jeux sortis avant 2014. L'univers officiel reprend, quant à lui, les histoires des films et des autres supports parus depuis 20143,d.
+
+Histoire commune
+La République galactique a été fondée pour amener la paix dans la galaxie, mais, tout au long de son existence, elle a été secouée par des sécessions et des guerres, notamment contre l'Empire Sith. Les chevaliers Jedi, gardiens de la paix et de la justice, réussissent à éliminer les Sith et la galaxie retrouve la prospéritéa 1,4. Cependant, après des millénaires d'existence, la République montre de lourdes failles ainsi qu'une corruption rampante, et se trouve de fait fragilisée ; selon une prophétie Jedi, un « Élu » naîtra et rétablira un jour l'équilibre dans la Forcea 2.
+
+Seconde trilogie de Star Wars
+Un seigneur Sith, Dark Sidious, profite des faiblesses de la République pour se faire élire Chancelier suprême4,a 2 sous le nom de Palpatine. Manipulant dans l'ombre le Sénat galactique, l'Ordre Jedi et la Confédération des systèmes indépendants, Palpatine organise un conflit d'abord restreint à la planète Nabooa 2 puis crée la Guerre des clones de toutes pièces et la déclenche, opposant la République aux forces Séparatistes de la CSI. C'est pendant cette période obscure que se distinguera un jeune Jedi, Anakin Skywalker, originaire de Tatooine, qui sera le héros de nombreuses batailles aux côtés de son mentor Obi-Wan Kenobi. Il se murmure alors qu'Anakin pourrait bien être « l'Élu » de la Prophétie. Palpatine se voit entre-temps offrir les pleins pouvoirs par le Sénat galactique5,a 3 et, son objectif atteint au bout de trois ans, concrétise son coup d'État en proclamant la naissance de l'Empire galactique. Ayant entre-temps manipulé le jeune Skywalker et fait de lui son apprenti maléfique, le désormais Empereur envoie un Anakin perverti par le Côté Obscur de la Force assassiner les dirigeants Séparatistes et la plupart de ses amis Jedi, devenant ainsi Dark Vadora 4. Lors d'un duel sur la planète Mustafar contre son ancien mentor Obi-Wan Kenobi, Vador se retrouve amputé, brûlé et défiguré et ne devra son salut qu'à une armure respiratoire qui seule le maintiendra en vie pour le restant de ses jours. Sa propre femme, Padmé Amidala, meurt en accouchant de jumeaux qui seront mis à l'abri des persécutions de l'Empire. Les événements de cette période sont relatés dans les épisodes I à III, ainsi que dans les séries Star Wars: The Clone Wars et plusieurs récits de l'Univers étendu6.
+
+Trilogie originale de Star Wars
+Vingt ans plus tard, l'Empire fait régner la terreur dans la galaxie. Les espèces non-humaines sont opprimées, les Jedi sont réduits à un très faible nombre d'exilés et traqués à mort aux quatre coins de la galaxie. C'est dans ce climat d'oppression que naît l'Alliance rebelle avec pour but de rétablir les valeurs de la République. L'un des membres les plus influents de l'Alliance est la princesse Leia Organa, de la famille royale d'Aldérande, qui détient les plans de la nouvelle arme de l'Empire7, l'Étoile de la mort, une station capable de détruire une planète entière. Les rebelles lancent un assaut qui se solde par la destruction de la station grâce à un jeune homme maîtrisant la Force, Luke Skywalker8,a 5. Entraîné par les maîtres Jedi Obi-Wan Kenobi et Yoda, il devient un puissant Jedi. Lors d'un combat contre Dark Vador, ce dernier lui révèle qu'il est son père9,a 6. Yoda confirme à Luke que Dark Vador et Anakin Skywalker, son père, sont bien la même personne, et au passage sa gemellité avec la princesse Leia. Au cours d'un duel dans les propres quartiers de l'Empereur, Luke tente de faire revenir son père du bon côté de la Force, mais ce dernier semble inflexible. Ce n'est qu'en voyant l'Empereur tenter de tuer son fils sous ses yeux à l'aide de la Force obscure, que Vador se sacrifie en tuant son maître et sauve son fils, rétablissant ainsi l'équilibre dans la Force. Dans le même temps, l'Alliance rebelle remporte la bataille d'Endor, détruit la deuxième Étoile de la mort, et parachève ainsi l'effondrement de l'Empire Galactique. Ces événements sont ceux de la Trilogie originale10,a 7.
+
+Suite de l'histoire dans la troisième trilogie de Star Wars
+Dans la troisième trilogie cinématographique de Star Wars11, la bataille d'Endor a marqué une victoire majeure et la proclamation d'une Nouvelle république mais pas la fin des affrontements12. La fin de la guerre civile galactique est marquée par la terrible bataille de Jakku, qui met fin à l'Empire13. Cependant, des officiers et des nobles impériaux s'exilent dans des régions inconnues pour reconstruire une nouvelle entité, nommée le Premier Ordre14. Effrayée par cette nouvelle menace, Leia Organa fonde la Résistance, une nouvelle force militaire privée afin de surveiller les agissements du Premier Ordre. Bien que tolérée par les dirigeants de la Nouvelle république, la Résistance est considérée par eux comme des alarmistes15. Le dernier chevalier Jedi en vie, Luke Skywalker, a disparu. Le Premier Ordre comme la Résistance fouillent la galaxie pour le retrouver. Han Solo et Leia Organa ont eu un fils, Ben, qui a basculé du côté obscur de la Force pour devenir Kylo Ren, un puissant guerrier du Premier Ordre obéissant au suprême leader Snoke. Parallèlement, une jeune pilleuse d'épaves solitaire vivant sur Jakku, Rey, sensible à la Force, va progressivement découvrir ses pouvoirs et se mettre à la contrôler. Un résistant du nom de Poe Dameron est capturé par le Premier Ordre lors d'une mission sur Jakku, mission dont le but était de récupérer une partie d'une carte menant à Luke Skywalker, parti en exil depuis de nombreuses années sur Ahch-To. Avant sa capture, il confie la carte à son fidèle compagnon droïde, BB-8. À la suite de cela, Finn, stormtrooper, déserte les rangs du sinistre Premier Ordre en aidant Poe à s'échapper. Ils volent un vaisseau qui vient ensuite se crasher sur Jakku. Finn se réveille seul, Poe et le vaisseau ont disparu. Il se met en quête de civilisation, et arrive à l'avant-poste de Niima. Là, il fait la connaissance de Rey et de BB-8 recueilli par cette dernière. Les troupes du Premier Ordre attaquent l'avant-poste à la recherche de l'ex-stormtrooper, du résistant, et du droïde. Rey, Finn et BB-8 arrivent à s'échapper à bord du mythique Faucon Millénium. Ces événements sont ceux de Star Wars, épisode VII : Le Réveil de la Force, premier film de la troisième trilogie cinématographiquea 8.
+
+Suite de l'histoire dans l'univers Légendes
+Article détaillé : Univers Légendes de Star Wars.
+Dans l'univers « Légendes » qui ne fait plus partie du canon de Star Wars, l'Empire Galactique se voit énormément fragilisé par la mort de son empereur et l'Alliance rebelle se transforme en Nouvelle République. L'Empire, qui subit de nombreux coups d'État en son sein, finit par perdre la plupart de son territoire au profit de la Nouvelle République. Cependant, les derniers Impériaux finissent par s'organiser et forment les Vestiges de l'empire. La jeune République, aidée par le Nouvel Ordre Jedi, doit les affronter dans une guerre qui dure des années avant qu'une paix ne soit signéea 9. Elle est cependant envahie peu après par des êtres extra-galactiques, les Yuuzhan Vong. Malgré la défaite de ces derniers, la plupart des planètes de la galaxie ont été lourdement touchées ou rendues inhabitables. La Nouvelle République prend fin et la Fédération galactique des Alliances libres la remplace16,a 10. Cependant, un Nouvel Empire galactique est instauré. Aidé par le Nouvel Ordre Sith, il provoque la chute de l'Alliance galactique et fait une nouvelle fois régner la terreur et la tyrannie dans la galaxie17,a 11.
+
+Technologie et armes
+Article détaillé : Technologies de Star Wars.
+
+Un sabre laser, arme emblématique des Jedi et des Sith dans la saga.
+L'histoire se déroule dans un univers de haute technologie. Les Jedi et Sith se battent au sabre laser, une arme de contact dont la lame est capable de traverser la plupart des matières. Malgré son nom, sa nature reste inconnue : le nom original, « lightsaber » (« sabre de lumière » ou « sabre lumineux »), désigne mieux l'aspect mais est moins explicite. Une exposition à la Cité des sciences explique qu'un laser ne pourrait pas produire cet effet, mais que du plasma confiné par un champ magnétique y correspondrait mieux18. Omniprésente dans la série, cette arme donne lieu à des duels spectaculaires et de plus en plus épiques au fur et à mesure de la réalisation des films, avec notamment l'apparition du sabre à doubles lames du Sith Dark Maul19.
+
+Outre leurs sabres, les Sith et les Jedi ont appris à maîtriser la Force, une énergie à la définition assez flouee. La Force permet notamment aux êtres qui y sont sensibles d'avoir des réflexes plus aiguisés, des dons de prescience et la capacité de déplacer des objets par la simple force de leur volonté20.
+
+Les voyages spatiaux sont courants dans la galaxie. Grâce à la technologie de l'hyperpropulsion, les vaisseaux sont capables de voyager rapidement d'un système stellaire à l'autre. Les différentes factions utilisent aussi des vaisseaux de guerre tels que les croiseurs interstellaires, devenus dans les films symboles de l'Empire, ou encore les chasseurs X-wing comme celui de Luke Skywalker. Les pilotes de la galaxie ont d'ailleurs leur jargon propre, qui n'est pas toujours expliqué au spectateur21. Les pistolets laser sont les armes les plus courantes dans la saga. Des véhicules très perfectionnés apparaissent également durant les batailles, à l'instar des gigantesques TB-TT qui marquent le début de l'épisode Va 6.
+
+Les droïdes sont également très présents, utilisés à des fins civiles ou militaires. Les plus visibles sont R2-D2 et C-3PO, présents dans les neuf films de la saga22. L'armée de la Confédération des systèmes indépendants, dans la prélogie, est pour sa part entièrement composée de droïdes de combat, tandis que les Kaminoens, qui ont développé des techniques de clonage avancées, créent des armées entières de clones au profit de la République23.
+
+Planètes
+Article détaillé : Astres de Star Wars.
+
+Coruscant, siège du pouvoir central galactique.
+L'univers de Star Wars met en scène de nombreuses planètes d'une galaxie lointaine. Certaines reviennent dans la plupart des films comme Tatooine, planète désertique de la bordure extérieure de la galaxie où grandissent Anakin et Luke Skywalker24, ou encore l'œcuménopole du noyau Coruscant, centre physique et politique de la galaxie. Un grand nombre de planètes s'inspirent d'un type de paysage particulier comme Mustafar qui offre un paysage volcanique de désolation ou Hoth, planète glacée balayée par des tempêtes de neige. Au contraire, des planètes ressemblent fortement à la Terre, à l'image de Naboo ou Alderaan25. Par ailleurs, si des planètes ou des lunes volcaniques telles que Mustafar, ou recouvertes de forêt comme une lune d'Endor, n'ont jamais été colonisées, certaines originalités imaginées dans la saga sont scientifiquement avérées. Ainsi, le double coucher de soleil sur Tatooine est possible, dans la mesure où il existe effectivement des systèmes planétaires qui gravitent autour de deux étoiles. Le surnom de « Tatooine » a même été donné à la planète HD 188753 Ab en raison de son système à trois étoiles26.
+
+D'autres planètes, telles que Corellia ou Kessel, sont simplement citées dans les films par des personnages voyageurs, révélant au spectateur un univers beaucoup plus étendu que celui qui est montré dans les seuls films27. Elles ont ensuite été détaillées dans les romans, les bandes dessinées et les jeux vidéo de l'univers étendu. Ainsi, Corellia est le théâtre de certains événements des romans de La Trilogie Corellienne de Roger MacBride Allen ou encore de la Trilogie de Han Solo28.
+
+Espèces
+Article détaillé : Espèces de Star Wars.
+
+Un cosplay de Wookiee (à gauche) et de Jawa (à droite).
+La galaxie de Star Wars est cosmopolite, constituée de nombreuses espèces. L'espèce humaine est la plus répandue, mais de nombreuses autres sont présentées. Certaines sont humanoïdes, comme les Gungans, les Twi'leks ou les Neimodiens, financiers corrompus à la peau verdâtre présents dans la prélogie. D'autres s'inspirent des animaux, à l'image des Wookiees, imposantes créatures humanoïdes poilues et des Ewoks, sortes d'oursonsa 7.
+
+Certaines restent mystérieuses comme l'espèce de Yoda : moins d'une dizaine de représentants de cette espèce apparaissent dans l'univers de Star Wars et gardent volontairement le secret sur les origines de leur espèce. Les Jawas demeurent tout aussi mystérieux, leur visage restant inconnu, dissimulé sous un manteaua 5.
+
+Les espèces présentes dans la trilogie originale sont pour la plupart des espèces humanoïdes, la technique étant alors limitée par les effets spéciaux de l'époque. La prélogie offre des espèces plus variées grâce à l'avancée technologique. Ainsi, Nick Dudman, qui a travaillé à la conception des créatures sur Le Retour du Jedi et La Menace fantôme, explique que le bond de quinze ans entre les deux films a radicalement changé la façon de concevoir les personnages, avec notamment l'apparition des images de synthèse29.
+
+Films
+Article détaillé : Films Star Wars.
+Lorsqu'il a commencé l'écriture de Star Wars, George Lucas a progressivement envisagé de réaliser trois films, puis trois trilogies. La trilogie centrale étant, selon lui, la plus commerciale, c'est par celle-ci qu'il a débuté.
+
+C'est ainsi que la première trilogie de Star Wars, sortie au cinéma entre 1977 et 1983, comprend les épisodes IV, V et VI. Les événements antérieurs à la première trilogie sont mis en scène dans une deuxième trilogie dite « Prélogie » (épisodes I, II et III), sortie au cinéma entre 1999 et 200530.
+
+Après l'achat des droits d'auteur de Star Wars par la Walt Disney Company, une troisième trilogie (épisodes VII, VIII et IX) sort en salles entre 2015 et 2019, sans compter plusieurs films dérivés ayant pour cadre le même univers de fiction.
+
+Trilogie originale (1977 à 1983)
+Articles détaillés : Trilogie originale, épisode IV, épisode V et épisode VI.
+Synopsis
+« J'ai pris beaucoup de plaisir à renverser la trajectoire des films à l'origine. Si vous les visionnez dans l'ordre de leur parution, IV, V, VI, I, II, III, vous obtenez un certain film. Si vous les visionnez en partant du I jusqu'au VI, le résultat est complètement différent. Une ou deux générations les ont vus d'une certaine manière, qui sera complètement autre pour les prochaines. C'est une façon de faire du cinéma extrêmement moderne, presque interactive. Vous prenez des cubes, vous les agencez différemment et vous obtenez des états émotionnels différents. »
+
+— George Lucas31
+
+L'épisode IV débute lorsque le croiseur de Dark Vador capture le vaisseau de la princesse Leia qui détient les plans volés de l'Étoile Noire, l'arme absolue du puissant Empire galactique. La princesse dissimule les plans dans la mémoire du droïde R2-D2 qui s’éjecte sur la planète Tatooine en compagnie de son alter ego C-3PO. Les droïdes sont capturés par des ferrailleurs Jawas avant d'être finalement vendus à la ferme d'Owen Lars où vit Luke Skywalker, un jeune fermier qui rêve d'aventures. Ce dernier intercepte dans la mémoire du droïde un message de la princesse Leia qui recherche l'aide d'un certain Obi-Wan Kenobi. Ce dernier est un vieux Jedi qui vit en ermite sur Tatooine depuis la fin de la Guerre des clonesf et l'avènement de l'Empire. Il révèle à Luke qu'il était ami avec son père avant que ce dernier ne soit assassiné par Dark Vador, un Jedi déchu perverti par le côté obscur de la Force. Avec l'aide d'Obi-Wan, du contrebandier Han Solo et de son copilote Chewbacca, Luke parvient à libérer la princesse Leia des geôles de l'Étoile Noire puis de la station elle-même, et à apporter les plans dérobés à ses alliés. Ceux-ci parviennent à les lire et identifier le point faible de la station puis lancent une offensive sur celle-ci. La Bataille de Yavin marque l'apogée du film, et se solde par la destruction de l'Étoile Noire et la victoire de l'Alliance rebelle, malgré de nombreuses pertes dont Kenobia 5.
+
+L'épisode V commence par l'invasion à grande échelle par l'Empire de la base rebelle de la planète glaciale Hoth, sur laquelle les rebelles s'étaient cachés. Dans la débandade qui s'ensuit, les héros se retrouvent séparés : Leia, Chewbacca, Solo et C-3PO doivent en effet faire face à une avarie sur le vaisseau et, après avoir semé l'Empire, se réfugient chez un ancien ami du contrebandier, Lando Calrissian, sur la planète Bespin. Dans le même temps, Luke Skywalker suit l'entraînement des Jedi sur Dagobah auprès du maître Jedi Yoda et apprend à se méfier du côté obscur de la Force. Vador s'empare de ses amis pour tenter d'attirer Luke auprès de lui, sur Bespin, et de le prendre au piège pour le convertir au côté obscur, en vue de faire de lui un puissant allié de l'Empire. Han Solo se retrouve emprisonné dans un bloc de carbonite, puis est offert au redoutable chasseur de primes Boba Fett, désireux de récupérer la prime posée sur le contrebandier par le mafieux Jabba le Hutt sur Tatooine. Lors d'un éprouvant duel, Dark Vador révèle à Luke qu'il est son père. Celui-ci, plutôt que de se rendre, choisit de se jeter dans le vide et est sauvé in extremis par ses compagnonsa 6.
+
+Le début de l'épisode VI présente le plan mis au point par les héros pour secourir Han Solo des mains de Jabba le Hutt, plan qui se révèle un succès et se solde également par la mort du Hutt. Dans le même temps, l'Empire met au point une deuxième station de combat, l'Étoile de la Mort, dont la construction est supervisée sur le chantier par l'Empereur Palpatine lui-même. L'Alliance rebelle voit donc là une occasion de frapper un coup décisif pour la victoire, d'autant que la station semble vulnérable. En réalité, cette faiblesse n'est que feinte, dans un piège destiné à précipiter Luke Skywalker du côté obscur, le faire remplacer son père, et au passage éliminer définitivement les rebelles. Cependant, l'intervention du petit peuple des Ewoks sur Endor permet de retourner la situation. Dans les quartiers de l'Empereur, Luke tente de faire revenir son père, Dark Vador (Anakin Skywalker), du côté clair de la Force. Alors que Palpatine se prépare à achever son fils, Vador projette son maître dans le puits de la station, encaissant à la place de son fils la foudre létale de ce dernier. Il meurt en paix dans les bras de Luke tandis que les rebelles sont en passe de détruire l'Étoile de la Mort. Alors que l'on célèbre la fin de l'Empereur dans la galaxie, les esprits d'Anakin, d'Obi-Wan et de Yoda se réunissent une dernière fois avant de se fondre dans la Forcea 7.
+
+Des débuts difficiles mais un succès sans précédent
+
+Mark Hamill, interprète de Luke Skywalker, lors de la première du film F.I.S.T. en 1978.
+Le scénario de Star Wars est imaginé par George Lucas au début des années 1970. Le premier scénario est écrit en 1973 sous le titre Le Journal des Whills et raconte les aventures du Jedi Mace Windug : certains éléments qui y figurent, comme la structure de l'Ordre Jedi, n'apparaîtront finalement que dans la prélogie, vingt-cinq ans plus tard32. Le premier projet intitulé The Star Wars est rédigé au mois de mai : en quatorze pages, Lucas résume globalement les aventures du général Skywalker. Progressivement, Lucas étoffe son scénario, y ajoutant des personnages, des lieux, des concepts, qui n'apparaîtront parfois que bien plus tard33. Il devient alors impossible de faire tenir toute l'histoire dans un seul film. Lucas pense alors devoir réaliser trois trilogies et décide de commencer par la trilogie centrale34.
+
+Cependant, l'époque n'est pas favorable aux films de science-fiction et les studios de cinéma ne sont pas tentés par le film. Le succès de son film précédent, American Graffiti, permet cependant à Lucas d'obtenir un contrat pour Star Wars avec la 20th Century Fox34,35. Pour obtenir un financement, Lucas fait appel au dessinateur Ralph McQuarrie, qui illustre des scènes spectaculaires de son scénario et pose les bases de l'apparence de certains personnages, montrant ainsi le potentiel du projet. Les producteurs sont intéressés et acceptent d'investir 8 250 000 dollars36. Lucas réussit également, fort du succès commercial de son film précédent, à obtenir les droits sur les deux épisodes suivants, même si, comme il le craint, le premier tournait au désastre. Il tente également un pari risqué : tout en refusant certains privilèges que lui propose la Fox, il demande à toucher l'intégralité des revenus des produits dérivés. Ce qui est alors une pratique dérisoire va se révéler, pour lui, une véritable manne financière37.
+
+Dans les rôles principaux, le réalisateur décide d'engager des acteurs débutants : Mark Hamill, déjà connu à la télévision, et Carrie Fisher, fille d'acteurs reconnus, sont finalement choisis pour interpréter Luke Skywalker et Leia Organa38. Harrison Ford est pour sa part tout d'abord rejeté (car il a déjà joué avec Lucas), mais le réalisateur change d'avis après l'avoir vu donner la réplique aux acteurs pendant les auditions et lui donne le rôle de Han Solo. Pour jouer le rôle du sage Obi-Wan Kenobi, un acteur plus établi est choisi : Sir Alec Guinness, qui, selon George Lucas, joue sur le tournage le même rôle de mentor que dans le film39,40.
+
+La réalisation de l'épisode IV, alors simplement titré La Guerre des étoiles, à la demande des studios qui ne veulent pas embrouiller le public, se révèle assez désastreuse : les studios se montrent de plus en plus pressants à mesure que les coûts de tournage augmentent. Les séquences tournées en Tunisie sont troublées par le climat et les problèmes techniques. La suite du tournage, dans des studios londoniens, est marquée par un rythme de travail effréné et la mauvaise volonté des équipes techniques britanniques41. Qui plus est, les projections test du film (dont il manque alors la musique et les effets spéciaux), peinent à convaincre. L'échec semble programmé et la sortie n'est prévue que dans trente-deux salles de cinéma à travers les États-Unis, en 197742. Le succès est cependant immédiat et les retombées générées par les ventes de produits dérivés permettent à Lucas d'envisager la suite de ses films43. En quelques mois, diffusé dans le monde entier, Star Wars connaît un grand succès et devient un phénomène de société44.
+
+La réalisation du deuxième épisode est donc à l'ordre du jour et Lucas surprend le monde du cinéma en décidant de le financer lui-même, par le biais de sa société Lucasfilm45. Cependant, l'état de santé du réalisateur s'est fortement dégradé lors du premier tournage, en particulier à cause du stress et du calendrier serré. S'il continue à écrire le scénario et à s'impliquer dans la production, Lucas laisse donc sa place de réalisateur à un cinéaste confirmé, Irvin Kershner, qui se charge de la réalisation de l'épisode V : L'Empire contre-attaque46. Le film implique des effets spéciaux plus imposants et plus de moyens, mais le succès assuré évite les problèmes connus précédemment. Il sort en 1980 et est un succès critique et commercial à la hauteur de l'épisode précédent47,48. Un souci se pose cependant : le fait que le film commence non pas par un générique classique listant les acteurs, mais par un texte déroulant présentant l'intrigue, conduit à un procès de la part de la Directors Guild of America et de la Writers Guild of America que le réalisateur quitte ensuite, se mettant en marge des règles d'Hollywood49. À la même époque, Lucas fait construire le Skywalker Ranch, contenant les locaux de postproduction et de montage où seront achevés les prochains films de la série50.
+
+L'épisode VI est ensuite tourné. Contrairement au premier film, L'Empire contre-attaque n'a pas été conçu pour être indépendant et sa fin implique obligatoirement une suite que le public attend51. Kershner ne se sentant pas capable de réitérer l'expérience, la réalisation échoit à Richard Marquand52. Cependant, pour éviter les retards et dépassements de budget rencontrés sur le tournage précédent, Lucas se montre plus présent53,54. Le film sort en 1983 et devient le plus rentable de la trilogie55. Il marque, pour quinze ans, la fin de Star Wars, le temps que le réalisateur puisse profiter de ses enfants et disposer de la technologie nécessaire à ses ambitions56.
+
+Prélogie (1999 à 2005)
+Articles détaillés : Prélogie, épisode I, épisode II et épisode III.
+Synopsis
+L'épisode I a lieu 32 ans avant la Bataille de Yavin. Deux membres de l'ordre Jedi, le chevalier Qui-Gon Jinn et son apprenti Obi-Wan Kenobi sont chargés par le sénat d'enquêter sur une crise politique touchant la planète pacifique de Naboo. Celle-ci est en réalité assiégée et envahie militairement par la puissante Fédération du commerce manipulée secrètement par Dark Sidious alias Palpatine. Sa reine, Padmé Amidala, fuit la planète avec les Jedi pour plaider sa cause devant le Sénat, sur Coruscant. Attaqué et touché en tentant de forcer le blocus, le vaisseau de la reine s'arrête sur Tatooine pour réparer son vaisseau et y rencontre un jeune esclave, Anakin Skywalker, qui présente de fortes affinités avec la Force. Aidant le groupe à réparer leur vaisseau en gagnant une course de module, il les rejoint finalement. Arrivés sur Coruscant, les héros se rendent vite compte que le Sénat ne fera rien pour les aider et repartent sur Naboo mener eux-mêmes la libération de la planète, tandis que le sénateur Palpatine profite de la crise pour accéder au pouvoir en devenant Chancelier. Sur Naboo, un mystérieux Sith, Dark Maul, tue Qui-Gon, avant d'être vaincu et amputé par Obi-Wan. La planète est finalement libérée et Anakin entame la formation des Jedi auprès d'Obi-Wan malgré la désapprobation des maîtres Yoda et Mace Windu qui s'interrogent sur un possible retour des Sitha 2.
+
+Dix ans plus tard se déroule l'épisode II. La République envisage de créer une armée pour lutter contre la Confédération des Systèmes Indépendants, un mouvement séparatiste qui prend de l'importance dans la galaxie. Obi-Wan Kenobi est chargé de retrouver la trace d'un mystérieux tueur à gages visiblement lancé sur Padmé Amidala, désormais sénatrice, qu'Anakin Skywalker est chargé de protéger. Sur la planète Kamino, le Chevalier Jedi découvre qu'une armée de clones a déjà été commandée par la République, de façon tout à fait officieuse et secrète, il y a près de 10 ans par le Jedi Sifo-Dyas. Anakin escorte Amidala sur Naboo, et tous deux tombent amoureux l'un de l'autre. En suivant le mercenaire Jango Fett sur Geonosis, Kenobi est finalement fait prisonnier par les séparatistes et Anakin vient à son secours avec la sénatrice, tandis que le Sénat vote les pleins pouvoirs au chancelier Palpatine, qui proclame alors officiellement la création d'une Grande Armée de la République, l'armée des clones lancée en secret 10 ans plus tôt. Celle-ci, menée par les Jedi, intervient pour secourir les héros captifs et condamnés à mort par les séparatistes, déclarant de fait la guerre des clones voulue depuis le début par le Seigneur Noir des Sith, Dark Sidious. Peu après la bataille, Anakin épouse secrètement Padmé sur Naboo, la planète natale de la sénatricea 3.
+
+L'épisode III débute lorsque les chevaliers Jedi Skywalker et Kenobi sauvent le chancelier capturé par les séparatistes durant la bataille de Coruscant. Peu à peu, l'influence de ce dernier augmente considérablement, poussant Skywalker à tuer froidement le comte Dooku. Les Jedi suspectent en parallèle la présence du Seigneur Sith qu'ils recherchent depuis la mort de Qui-Gon, dans les hautes sphères du pouvoir. Alors que des chevaliers sont envoyés lutter aux quatre coins de la galaxie avec leurs bataillons de clones, Anakin découvre le pot aux roses : le Seigneur Sith en question, n'est autre que Palpatine lui-même, le chancelier. Ce dernier lui explique avoir, grâce au côté obscur de la Force, les moyens de sauver Padmé d'une mort certaine qu'Anakin a vu en songe, et dont il est convaincu. Anakin empêche alors les Jedi de tuer le Sith en s'interposant dans son duel contre Mace Windu. Palpatine en profite pour éliminer le maître Jedi et décrète ensuite l'ordre 66 : tous les chevaliers Jedi sont désormais coupables de trahison envers le Chancelier, et progressivement éliminés par les clones. Certains, cependant, échappent au massacre, Yoda et Obi-Wan en tête. Le premier des deux part affronter Palpatine, qui entre-temps s'est autoproclamé Empereur, mais échoue à le tuer. Dans le même temps, sur la planète Mustafar, Obi-Wan affronte Anakin, devenu le Seigneur Sith Dark Vador, et quant à lui remporte son duel : le Maître Jedi laisse le chevalier déchu pour mort, amputé de son dernier avant-bras naturel et de ses deux jambes, et atrocement brûlé. Tandis que Palpatine fait opérer Vador, désormais affublé d'un lourd respirateur et enfermé dans une imposante armure noire, l'épouse de celui-ci, Padmé Amidala, donne naissance à deux enfants, Luke et Leia, avant de mourir. Le premier est confié à son oncle et sa tante sur Tatooine sous la protection d'Obi-Wan, tandis que la seconde est confiée au sénateur Bail Organa qui l'élevera dans la famille royale d'Alderaana 4.
+
+Réalisation : le retour de Lucas aux commandes
+
+Hayden Christensen, qui tient le rôle d'Anakin Skywalker dans les épisodes II et III, en 2005.
+Le scénario de la prélogie était déjà ébauché depuis les années 1980. Ainsi, le fait qu'Anakin soit gravement brûlé dans un volcan, que les ennemis des Jedi soient les Sith ou encore le fait que l'Empereur soit nommé Palpatine, bien que non mentionnés dans les films de la trilogie originale, sont déjà expliqués dans les novélisations parues à la même époque que les films. Le contexte politique de la fin de la République est également clair dans l'esprit de George Lucas57. De même, certains faits et lieux, comme Kashyyyk, la planète des Wookiees (que l'on peut déjà voir dans The Star Wars Holiday Special de 1978), ou Coruscant, la capitale de la République, apparaissent dans les travaux de l'illustrateur Ralph McQuarrie, et donc sont bien antérieurs à la saga. Lucas s'attaque à la rédaction précise du scénario en 1994. Celui-ci est terminé en 1995, bien que, de l'aveu même du réalisateur, sa technique de travail le pousse à poursuivre les ajouts et modifications jusqu'au montage final58.
+
+Contrairement à ce qu'il a fait pour la trilogie originale, Lucas choisit cette fois-ci des acteurs jeunes, mais qui ont déjà fait leurs preuves : Natalie Portman s'est ainsi illustrée dans Léon et Ewan McGregor dans Trainspotting59. Des acteurs plus prestigieux sont également engagés : Liam Neeson interprète Qui-Gon Jinn et joue sur le tournage un rôle proche de celui d'Alec Guinness lors de la première trilogie60. Samuel L. Jackson incarne Mace Windu, tandis que Christopher Lee fait son retour au cinéma dans le rôle du comte Dooku. Ian McDiarmid, après une carrière dans le théâtre classique britannique, reprend le rôle de Palpatine qu'il avait déjà tenu dans le Retour du Jedi, tandis que Kenny Baker et Anthony Daniels reprennent le rôle des deux droïdes et sont les seuls acteurs présents dans les six films61. Enfin, un certain nombre de personnages sont désormais totalement virtuels comme Yoda ou Jar Jar Binks62.
+
+Les trois films sont réalisés par Lucas, contrairement à ce qui s'était fait dans la trilogie originale. Bien que l'informatique et les décors virtuels soient de plus en plus utilisés, des décors réels sont aussi le théâtre de l'action. L'équipe du film tourne ainsi en Italie et en Tunisie63.
+
+La Menace fantôme sort en 1999 et marque le retour de Star Wars sur les écrans. Cependant, la critique se montre mitigée et même souvent négative. Certains accusent notamment l'abondance d'effets spéciaux (un seul plan du film en est totalement dépourvu) et l'intrigue complexe, mais c'est surtout le personnage de Jar Jar Binks qui attire les foudres de la critique64.
+
+L'Attaque des clones sort en 2002. Il est l'un des premiers films de l'histoire du cinéma à avoir été tourné en numérique et premier de la série à bénéficier d'une sortie mondiale simultanée pour éviter de souffrir du piratage65 alors en vogue. Une nouvelle fois, l'accueil critique est très partagé, entre ceux qui voient un essoufflement de la saga et une perte de nouveauté et ceux qui sentent un réel retour en force après l'épisode précédent66.
+
+La Revanche des Sith doit enfin faire le lien entre les deux trilogies et marquer le passage de la flamboyante République à l'ère de l'Empireh. L'épisode, particulièrement sombre, est ainsi marqué par un très long combat au sabre entre Anakin et Obi-Wan67. Le scénario n'est pas achevé et évolue entre 2002 et 2003 : une apparition de Han Solo enfant est ainsi rayée du script, tandis que la fin définitive de la saga se dessine68. Lors du tournage, cet épisode est le seul pour lequel les acteurs ne quittent pas les studios69. Le film ouvre le festival de Cannes de 2005 et connaît un grand succès commercial70.
+
+Troisième trilogie (2015 à 2019)
+Articles détaillés : Troisième trilogie de Star Wars, épisode VII, épisode VIII et épisode IX.
+La troisième trilogie a été évoquée à de nombreuses reprises avant sa mise en chantier, au point de devenir une véritable légende. Ainsi, lors de la sortie du Retour du Jedi en 1983, Time Magazine annonçait déjà les deux autres trilogies. Si le résumé des épisodes I, II et III est déjà ébauché, celui des VII, VIII et IX est alors décrit comme très vague, bien que les acteurs Mark Hamill, Harrison Ford et Carrie Fisher doivent reprendre leurs rôles pour le tournage, à condition qu'ils aient l'air assez vieux71. La trilogie romanesque de Timothy Zahn L'Héritier de l'Empire, La Bataille des Jedi et L'Ultime Commandement, a été annoncée à tort par des éditeurs français comme correspondant à la troisième trilogie72.
+
+George Lucas a cependant déclaré à de nombreuses reprises que le scénario avait été modifié et que l'épisode VI marquait la fin réelle de la série73. Selon lui, l'histoire de Star Wars est celle d'Anakin et Luke Skywalker et elle s'achève à la fin de l’épisode VI. De même, Gary Kurtz, producteur des épisodes IV et V, a dévoilé les scénarios prévus pour la saga en neuf épisodes. Selon cette interview, la saga en neuf épisodes supposait que l'Empereur n'apparaisse que dans le neuvième, confirmant que l'épisode VI tel que réalisé ne laisse pas la porte ouverte aux suites initialement prévues74.
+
+Lucas a également déclaré ne pas avoir de réponse quand on lui demande ce qui se passe après Le Retour du Jedi75. Des rumeurs et de fausses interviews fleurissent régulièrement sur Internet pour annoncer les épisodes VII, VIII et IX et sont condamnées par Lucasfilm qui a parfois pris des mesures à l'encontre des auteurs des canulars76. Il lui est également arrivé de dire, en 2002, qu'il pourrait reprendre le projet après avoir laissé passer vingt ans, comme il l'a fait pour la prélogie, mais, ajoute-t-il : « ne comptez pas trop là-dessus ». Il ajoute en 2005 : « Je ne laisserai personne d'autre diriger les épisodes VII, VIII et IX. C'est la fin, je ne veux pas que d'autres personnes fassent d'autres épisodes de La Guerre des étoiles. Il y a d'autres possibilités, des livres, mais des films, des longs-métrages, non. C'est quelque chose qui m'appartient »77.
+
+En 2011, George Lucas entame de manière secrète l'écriture d'une troisième trilogie Star Wars78,79, et commence dans les mêmes conditions les discussions de ventes de son studio avec Bob Iger, PDG de la Walt Disney Company80. Le 30 octobre 2012, la Walt Disney Company annonce avoir racheté Lucasfilm pour un montant estimé à 4,05 milliards de dollars. Lucas et Iger annoncent publiquement le même jour la sortie au cinéma de Star Wars, épisode VII : Le Réveil de la Force pour 201581, suite qui initiera une troisième trilogie dont les deux épisodes suivants sont prévus pour 2017 et 201982. Deux films dérivés sont également annoncés respectivement pour 2016 (Rogue One) et 2018 (Solo) 83. À cette occasion, la société affirme dans un communiqué le septième épisode ainsi que « d'autres films devraient continuer au-delà de la saga et faire prospérer la franchise bien au-delà dans le futur »84. George Lucas déclare : « il est maintenant temps pour moi de passer Star Wars à une nouvelle génération de réalisateurs. J'ai toujours cru que Star Wars me survivrait et je pense qu'il était important de mettre la transition en place de mon vivant »85. La réalisation de l’épisode VII échoit dès lors au réalisateur J. J. Abrams, connu notamment pour avoir réalisé les onzième et douzième longs-métrages de la franchise Star Trek. Sorti en décembre 2015, Le Réveil de la Force devient l'épisode le plus lucratif de la franchise avec plus de 2 milliards de dollars de recettes86. L'épisode VIII est confié à Rian Johnson qui en achève le tournage en juillet 2016 pour une sortie en France le 13 décembre 2017. Le réalisateur choisi pour diriger l'épisode IX est Colin Trevorrow87. Cependant, à la suite d'un conflit au niveau du scénario entre Colin Trevorrow et Lucasfilm, ce dernier est remplacé à la réalisation le 12 septembre 2017 par J. J. Abrams, déjà à la réalisation du septième volet88. Le scénario de Trevorrow, intitulé Star Wars: Episode IX – Duel of the Fates, est alors abandonné et Abrams reprend le projet de zéro89. Le 14 septembre 2016, TNT et TBS signent un contrat d'exclusivité avec Walt Disney Studios pour la diffusion des 10 films Star Wars à la télévision jusqu'en 2022, d'une valeur d'au moins 250 millions d'USD90,91. La vente comporte aussi les droits de diffusion en streaming jusqu'en 202492. L'actrice qui a personnifié Leia Organa depuis 1977, Carrie Fisher, décède d'une crise cardiaque à 60 ans le 27 décembre 2016, peu de temps après avoir tourné toutes ses scènes pour l'épisode VIII, où elle apparaitra pour la dernière fois93. La sortie de l'épisode IX est quant à elle prévue le 20 décembre 201994. Le 2 août 2018, Disney indique chercher à récupérer les droits de diffusion télévisuelle de Star Wars vendus à Turner Broadcasting System jusqu'en 202495,96.
+
+Projets (après 2019)
+Le 9 novembre 2017, Robert Iger, le PDG du groupe Disney, annonce le lancement d'une quatrième trilogie Star Wars en déclarant « Nous avons déjà d'autres super films Star Wars déjà prévus pour les années qui viennent en plus de la sortie en 2019 de l'épisode IX. Nous sommes très heureux d'annoncer que nous venons de signer un accord avec Rian Johnson, le réalisateur des Derniers Jedi, pour développer une toute nouvelle trilogie Star Wars »97. Cette nouvelle trilogie devait être « séparée » de la saga de la famille Skywalker qui est au centre des épisodes I à IX, ne constituant donc pas la suite de l'épisode IX sorti en décembre 201998. Le 7 mai 2019, Walt Disney Studios annonce les dates de ses prochaines productions dont trois films Star Wars étalés jusqu'en 202799,100.
+
+Mais les plans de Disney et de Lucasfilm changent en 2019 ; d'une part le nouveau projet est réduit à un film prévu en 2022 (conséquence de l'échec critique et commercial de Solo: A Star Wars Story101), et d'autre part sa conception est confiée aux créateurs de la série télévisée Games of Thrones, David Benioff et D. B. Weiss. « Notre prochain film Star Wars sera le leur. Et nous n’allons pas vous en dire plus pour le moment » déclare le patron de Disney Robert Iger le 14 mai 2019101. Le 29 octobre 2019, Benioff et Weiss annoncent qu'ils se retirent du projet en raison d'un emploi du temps surchargé par leur contrat avec Netflix102.
+
+Films dérivés (depuis 2008)
+Articles détaillés : Films dérivés de Star Wars, The Clone Wars, Rogue One et Solo.
+Le premier film dérivé est un film d'animation sorti en 2008, qui sert de pilote à la série télévisée du même nom : Star Wars: The Clone Wars. Il est produit par Lucasfilm Animation et se déroule entre les épisodes II et III de la saga. Il relate les aventures d'Obi-Wan Kenobi, d'Anakin Skywalker et surtout de l'apprentie de celui-ci, Ahsoka Tano. Ces Jedi ont pour mission de ramener sain et sauf le fils du trafiquant Jabba le Hutt103.
+
+L'achat de Lucasfilm par Disney en 2012 passe également par la volonté de George Lucas de choisir Kathleen Kennedy comme présidente, et productrice des films à venir104. En même temps qu'est préparée la troisième trilogie, il est également décidé d'« étendre » l'univers officiel avec des films dérivés. Kathleen Kennedy explique : « George a été très clair sur la façon dont ça marche. Le canon qu'il a créé, c'est Star Wars. Et l'épisode VII s'inscrit dans ce canon. Les films dérivés existeront dans ce vaste univers qu'il a créé. Il n'y a aucune tentative de transporter les personnages de ces films autonomes dans et hors les épisodes de la saga. Par conséquent, d'un point de vue créatif, c'est une feuille de route très clairement définie par George Lucas »105. Le premier de ces spin-off sort en décembre 2016, il s'agit de Rogue One: A Star Wars Story qui raconte le vol des plans de l'Étoile de la mort par les Rebelles qui luttent contre l'Empire Galactique. Ce film s'achevant quelques instants avant les premières images de l'épisode IV tourné par Lucas en 1977. La série dérivée prend le nom de A Star Wars Story. Solo: A Star Wars Story, consacré à la jeunesse de Han Solo, est sorti en 2018. Le prochain film était prévu pour 2022, et devait être écrit par David Benioff et D. B. Weiss106, mais ils doivent finalement se retirer du projet102.
+
+The Mandalorian and Grogu de Jon Favreau, faisant suite à la série The Mandalorian, sortira en 2026107.
+
+Critiques
+Accueil critique et commercial de la saga
+Les films de la trilogie originale sont très appréciés par la critique. Un nouvel espoir est nommé 11 fois pendant la cérémonie des Oscars de 1978108 et reçoit sept Oscars dont celui des meilleurs effets visuels, ce qui est alors rare pour un film de science-fiction109. L'Empire contre-attaque reçoit l'Oscar du meilleur son et un Oscar pour ses effets visuels110. Enfin, Le Retour du Jedi ne reçoit qu'un seul Oscar, aussi pour ses effets visuels111. Dans son livre Anatomie d'une saga, Laurent Jullier étudie l’accueil critique des cinq premiers films de la série (son livre étant sorti avant La Revanche des Sith) dans la presse française. Dès le premier film, il apparaît qu'un clivage oppose clairement une presse élitiste qui déteste, d'une presse plus populaire qui adhère, tout en considérant parfois que le scénario est faible. Le film n'échappe par ailleurs pas à la comparaison avec ce qui est alors le classique du genre : 2001, l'Odyssée de l'espace. Cependant, la plupart des critiques considèrent qu'il est impossible de comparer l'incomparable112.
+
+L'Empire contre-attaque connaît un accueil similaire, tout en étant généralement comparé à son prédécesseur. Même s'ils trouvent souvent quelque chose à critiquer au film, notamment son dualisme, la plupart des journaux accueillent de façon bienveillante ce nouvel opus113. Le troisième film, Le Retour du Jedi, attire des critiques plus affirmées : une partie des journalistes commencent à s'insurger contre ce qui semble être un phénomène de mode, tandis que des journaux de fans consacrés au genre font les louanges du film114. Aux États-Unis, la tendance est la même, comme en témoigne le site Metacritic : l'épisode IV obtient une note de 91/100, avec treize critiques positives115 ; le V obtient 78/100, avec onze critiques positives et quatre neutres116. Enfin, le VI n'arrive qu'à 52/100, avec huit critiques positives, trois neutres et trois négatives, qui critiquent principalement la répétitivité de la saga et l'apparition des Ewoks, jugés infantilisants117.
+
+Les films de la prélogie ont été moins bien accueillis par la presse et le public, La Menace fantôme n'ayant que trois nominations aux Oscars sans en remporter un seul118. Au contraire, il est nommé huit fois au Razzie Awards119 et remporte le pire second rôle pour Jar Jar Binks120. Les critiques reprochent en effet à Lucas d'avoir privilégié des effets spéciaux travaillés au détriment de l'intrigue et s'en prennent particulièrement au personnage de Jar Jar Binks et au jeu d'acteur de Jake Lloyd (Anakin enfant)121,122. Une version du film modifiée par un fan a par la suite été publiée, supprimant notamment la plupart des scènes de Jar Jar ; en créant un certain engouement médiatique123.
+
+George Lucas prend les critiques en compte et réduit ainsi fortement le rôle de Jar Jar Binks dans les films suivants124. L'Attaque des clones et La Revanche des Sith ne remportent pas d'Oscar et ne sont nommés qu'une fois, respectivement pour les meilleurs effets visuels125 et pour le meilleur maquillage126. L'épisode II reçoit des critiques plus favorables que son prédécesseur, bien que l'histoire d'amour soit régulièrement critiquée pour sa naïveté127. Le troisième connaît un plus grand succès critique, qui le ramène presque au niveau de l'ancienne trilogie, aux yeux d'une partie de la critique128.
+
+D'un point de vue commercial, Star Wars attire d'immenses foules devant les cinémas. La franchise est très rentable, avec 261 millions de dollars rapportés jusqu'à la sortie de l'édition spéciale en 1997, établissant à l'époque un record en termes de revenus pour le jour de sortie55. Ce faisant, George Lucas a contribué à l'apparition des blockbusters et d'une industrie du cinéma centrée avant tout sur la production d'argent, alors qu'il a lui-même toujours nié faire les films pour cela129. Il a ainsi toujours cherché à rester indépendant vis-à-vis des studios et a repoussé les suggestions qui visaient à rendre les films plus commerciaux en détournant son histoirei,130.
+
+Star Wars : édition spéciale
+« Pour moi, l’Édition Spéciale est la version définitive. Je ne m'inquiète même plus des autres, car il a fallu passer par de nombreuses étapes avant d'arriver au résultat final. »
+
+— George Lucas131
+
+Lorsqu'il prépare la prélogie, au milieu des années 1990, George Lucas considère également que la technologie lui permet de reprendre les films déjà réalisés pour mieux correspondre à l'idée qu'il en avait, ou pour en améliorer la cohérence. Des scènes sont retouchées pour être plus spectaculaires ou esthétiques (multiplication de personnages secondaires virtuels, ajout de scènes de liesses sur diverses planètes à la fin de l'épisode VI), mais d'autres sont totalement narratives132. Ainsi, l'épisode IV, qui était le plus décevant aux yeux du réalisateur, voit apparaître de nombreux changements ; la scène la plus importante met en scène un Jabba le Hutt de synthèse en grande conversation avec Han Solo : tournée dès 1977, elle n'avait pas pu être ajoutée faute de moyens techniques133. Ressortis au cinéma en 1997 dans cette version modifiée, les films connaissent à nouveau un grand succès ; c'est pour George Lucas le moyen de faire connaître sa saga à une nouvelle génération de spectateurs, mais aussi d'obtenir les fonds pour réaliser sa nouvelle trilogie134.
+
+En 2004, à l'occasion de la sortie de l'ancienne trilogie en DVD, Lucas reprend à nouveau ses films pour les remettre à niveau vis-à-vis de la prélogie. Les films sont ainsi restaurés et remasterisés et connaissent chacun leur lot de modifications. Jabba le Hutt est ainsi amélioré dans sa prestation de l'épisode IV, tandis que, dans l'épisode V, l'Empereur (qui apparaissait lors d'une conversation holographique était interprété par une vieille femme à qui on avait superposé des yeux de chimpanzé) est réinterprété par Ian McDiarmid, qui joue Palpatine dans les autres films. Enfin, lors du final du Retour du Jedi, l'acteur Sebastian Shaw, qui interprétait jusque-là Anakin Skywalker, est remplacé par Hayden Christensen, son alter-ego de la prélogie135.
+
+Cette ressortie ulcère particulièrement les fans de la première heure, dont une partie considère que les Star Wars authentiques sont ceux qu'ils ont vus jeunes, tels qu'ils étaient à l'époque. Une scène les choque particulièrement, dans l'épisode IV : la version originale montrait Han Solo tirant le premier sur le chasseur de primes Greedo. Dans l'édition spéciale, il tire en réponse au tir de Greedo, puis, dans la version de 2004, les deux tirent quasi-simultanément. Ce changement fait de nombreux mécontents, rassemblés derrière le slogan « Han shot first ». En septembre 2006, Lucas cède et publie les films dans une édition spéciale de deux DVD chacun, où la nouvelle version côtoie l'ancienne ; elles sont cependant retirées du marché dès le 31 décembre suivant131. En 2011, avec la sortie de la saga au format Blu-ray, Lucas réalise de nouveaux changements. Ainsi, lorsque Dark Vador tue l'Empereur à la fin de l'épisode VI, il ne le fait plus en silence, mais accompagne désormais son geste d'un « Noo... Nooooo ! » qui a lui-aussi énervé une partie des fans136.
+
+Au même moment, Lucasfilm annonce une ressortie future des films au cinéma en 3D pour l'année 2012137. Le producteur Rick McCallum précise plus tard qu'elle se fera au rythme d'un film par an, entre 2012 et 2017, mais le travail sur les épisodes II à VI se ferait sous réserve que la ressortie du premier film soit un succès138. L'épisode I est donc le premier film sorti aux États-Unis en 3D le 10 février 2012139. Lucasfilm annule ensuite la ressortie des autres films, officiellement pour se concentrer sur l'épisode VII140.
+
+Univers étendu
+Article détaillé : Univers étendu de Star Wars.
+L'univers étendu de Star Wars désigne toute l'histoire de la saga relatée sur un support autre que les films. En 2009, George Lucas considère que l'univers de Star Wars se divise en trois ensembles. La première catégorie regroupe ce sur quoi le réalisateur a un contrôle direct : les films et séries télévisées. Cet ensemble forme le canon de la saga. Le deuxième groupe comprend les produits officiels qui ne sont cependant pas du ressort direct de Lucas : jeux vidéo, bandes dessinées, romans… S'ils ne sont pas en contradiction avec le premier groupe, ces éléments intègrent également le canon. Une troisième catégorie existe ; elle comprend tout ce qui est produit par les fans. Il arrive quelquefois que des éléments de cet ensemble entrent dans le canon. Par exemple, la 501e compagnie de stormtroopers, association de cosplay, a été intégrée à l'intrigue du jeu Star Wars: Battlefront II et à l'univers de la saga141.
+
+À la suite du rachat de la société Lucasfilm par The Walt Disney Company, tous les éléments racontés dans les produits dérivés sont déclarés comme étant en dehors du canon. Ils sont alors regroupés sous l’appellation « Star Wars Légendes »142,143. Seuls les six films, le long-métrage The Clone Wars, la série associée restent dans le canon. La nouvelle série d'animation Star Wars Rebels ainsi que tous les produits dérivés réalisés après août 2014 rentrent eux aussi dans ce nouvel ensemble142,144.
+
+Séries télévisées et téléfilms
+Article détaillé : Star Wars à la télévision.
+
+Star Wars: The Clone Wars est l'une des principales séries de l'univers étendu.
+Le premier téléfilm Au temps de la guerre des étoiles (Star Wars Holiday Special) fut tourné un an après la sortie du premier opus. Les acteurs du film y reprenaient leur rôle. Le personnage de Boba Fett y apparaissait pour la première fois. Mais le téléfilm, de facture très médiocre, déplut à George Lucas à un point tel qu'il en interdit toute diffusion145. Ce programme reste un sujet de plaisanterie pour les fans, mais également pour les acteurs, notamment Harrison Ford et Carrie Fisher (qui en nie parfois l'existence en conférence de presse, mais qui, lors d'une convention, a repris la chanson qu'elle y interprétait). Quant à George Lucas, il déclare que « si j'avais un marteau et du temps, j'en traquerais chaque copie pour l'écraser »146.
+
+En 1984 et 1985, George Lucas produit deux téléfilms pour ABC, principalement destinés aux enfants. Centrés sur le peuple des Ewoks présentés dans Le Retour du Jedi, ils sont intitulés L'Aventure des Ewoks et La Bataille d'Endor et remportent un Emmy Awards pour leurs effets spéciaux145. Les deux productions mettent en scène le jeune acteur Warwick Davis, découvert par Lucas lors du tournage de Star Wars et par la suite présent dans de nombreux films de science-fiction147. À la même période apparaissent deux séries animées réalisées par les studios Nelvana (qui avaient contribué à Au temps de la guerre des étoiles) : Droïdes raconte les aventures de R2-D2 et C-3PO entre les épisodes III et IV, tandis que Ewoks raconte la vie de l'Ewok Wicket avant la bataille d'Endor. Cette deuxième série a fait l'objet d'une deuxième saison148.
+
+Dans les années 2000 et accompagnant la sortie de la prélogie, de nouveaux projets fleurissent. Une série animée racontant la guerre des clones sort à la télévision en 2003 : Star Wars: Clone Wars. Sortie entre les épisodes II et III, elle fait le lien entre eux, en introduisant notamment le personnage du général Grievous148. En 2008, une série en images de synthèse apparaît sur les écrans : Star Wars: The Clone Wars ; elle est introduite par un film utilisant la même technique, Star Wars: The Clone Wars149. À la suite de son interruption après six saisons, une nouvelle série animée est lancée en 2014 : Star Wars Rebels150. En 2017, alors que l'un des producteurs délégués de Rebels, Dave Filoni, annonce le renouvellement de Star Wars Rebels pour une quatrième saison, une nouvelle série animée est également dévoilée : Star Wars : Forces du destin151.
+
+Lors d'une convention de fans en 2005, George Lucas annonce l'arrivée d'une nouvelle série, avec de vrais acteurs, qui se déroulerait entre les épisodes III et IV. D'abord envisagée pour 2009, elle est repoussée, tandis que son scénario s'épaissit152. En 2011, Lucas déclare que, pour des raisons économiques, la série ne verra finalement pas le jour avant 3 ans153. En 2012, le titre de la série est dévoilé : Star Wars Underworld154. Cependant, il est annoncé en 2016 que le projet est en veille155. Malgré tout en mars 2018 Lucasfilm et Walt Disney Pictures annoncent que le cinéaste Jon Favreau sera aux commandes de cette nouvelle série dérivée de l'univers Star Wars qui sera diffusée en streaming sur la nouvelle plate-forme vidéo à la demande de Disney. Il écrira et produira cette nouvelle série annoncée vers fin 2019156,157. The Mandalorian sort le 12 novembre 2019. L'histoire se déroule entre Le Retour du Jedi et Le Réveil de la Force, et raconte les aventures d'un mercenaire mandalorien158.
+
+Romans
+Article détaillé : Star Wars dans la littérature.
+Dès 1977 et la sortie de La Guerre des étoiles, la saga est adaptée en roman puisque George Lucas signe lui-même la novélisation du premier épisode (en réalité écrite par Alan Dean Foster), avec de multiples précisions narratives inspirées, notamment, des scènes coupées159. Tous les autres épisodes font l'objet d'adaptations en roman, par d'autres auteurs cette fois-ci. Là encore, les auteurs s'inspirent des scènes coupées et du scénario original des films : ainsi, la novélisation de La Revanche des Sith accentue par de nouvelles scènes le passage d'Anakin Skywalker du Côté obscur de la Force148.
+
+Rapidement, d'autres romans viennent détailler des événements qui n'étaient qu'ébauchés dans la saga cinématographique. Ainsi, l'idylle entre Han Solo et Leia Organa est conclue dans Le Mariage de la Princesse Leia, paru en 1994160. Certaines séries connaissent également un franc succès en explorant le passé des personnages, comme les deux trilogies sur la jeunesse de Han Solo : les publications de ce type connaissent une grande mode dans les années 1990145. Les récits s'inspirent souvent de la forme des films et parfois réciproquement. Les trames souvent fondées sur des personnages et éléments familiers creusent cependant l'histoire de la saga avant et après les événements des films161.
+
+Avec les années 2000 et les séries sur le sujet, la Guerre des clones fait l'objet de plusieurs romans, notamment la série Republic Commando de Karen Traviss. Au total, les romans Star Wars, publiés en France aux éditions Presses de la Cité, Fleuve noir et Pocket pour une partie, sont plus de deux cents162.
+
+Bandes dessinées
+Article détaillé : Bandes dessinées Star Wars.
+Dès le début de la série, George Lucas désire que Star Wars soit adapté en bande dessinée. Marvel Comics publie ainsi une version très adaptée de l'épisode IV en prenant de grandes libertés avec les personnages de la série, par manque de documentation163. De façon générale, une grande partie des œuvres produites autour de Star Wars, qu'il s'agisse des films, de séries ou de jeux vidéo, sont également adaptées en bande dessinée. Les films font même l'objet d'une adaptation en manga161.
+
+Les autres bandes dessinées s'attachent à raconter d'autres points de l'histoire en insistant sur des personnages peu détaillés dans les films, comme Dark Maul, ou même sur de nouveaux points de l'histoire. Ainsi, Star Wars: Legacy raconte les aventures de Cade Skywalker, descendant direct de Luke, 133 ans après l'épisode VI. Une nouvelle guerre oppose d'une part les Sith et les impériaux et d'autre part l'Alliance Galactique et les Jedi, qui se solde par la défaite de ces derniers. Depuis le début de l'année 1991, Dark Horse Comics a le monopole de l'édition de ces bandes dessinées. En France, elles sont distribuées par les éditions Delcourt164. Néanmoins, à la suite du rachat de LucasFilm par Disney en 2012, Marvel annonce que les contrats avec Dark Horse ne seront pas renouvelés, la licence revenant donc à Marvel165.
+
+Jeux vidéo
+Article détaillé : Jeux vidéo Star Wars.
+
+Jeu vidéo faisant partie de l'univers étendu.
+Depuis la sortie des films, un très grand nombre de jeux vidéo inspirés de la saga Star Wars ont vu le jour. Si certains ont été plébiscités par la critique, d'autres ont été de véritables déceptions pour les joueurs. Les premiers jeux voient le jour sur Atari 2600 en 1982 et en jeux d'arcades en 1983 avec Star Wars. D'autres suivent sur Amstrad, Game Boy et NES et sont des adaptations des films, telles que le jeu Star Wars : The Empire Strikes Back en 1988166. Les années 1990 voient l'arrivée des simulateurs de vol avec Star Wars: X-Wing (en 1993) et ses suites et dérivés167. Les années 1990 voient également naître d'autres séries appréciées par la critique : Dark Forces et ses suites dérivées de Jedi Knight en 1995168 et Star Wars: Rogue Squadron en 1998, qui reste longtemps une référence du genre169.
+
+La sortie de la nouvelle trilogie au tournant de l'an 2000 marque l'arrivée de nouvelles adaptations de film, telles que Star Wars Episode I: Racer s'inspirant des courses de modules de Tatooine, Star Wars, épisode I : La Menace fantôme170 et Star Wars, épisode III : La Revanche des Sith, bien que ce dernier déçoive par sa faible durée de vie171.
+
+D'autres jeux explorent de nouvelles pistes scénaristiques, en comblant le vide entre les films, comme la série Star Wars: Battlefront, inspirée de la jouabilité de Battlefield 1942, qui permet de revivre un grand nombre de batailles dans différents camps172.Ces jeux sont sortis respectivement en 2004, 2005, 2015 et 2017 ont été développés par Electronic Arts. Star Wars: Empire at War est pour sa part un jeu de stratégie en temps réel aux critiques également positives173. Le summum de ce concept est atteint en 2003 avec Star Wars: Knights of the Old Republic consacré par beaucoup de magazines comme le jeu de l'année174 et en 2008 avec Star Wars : Le Pouvoir de la Force, dont l'histoire, développée avec l'aval de George Lucas, s'inscrit totalement dans la chronologie de la saga entre les deux trilogies175. Apprécié par la critique pour son scénario et ses graphismes, il se voit adjoindre une suite jugée très décevante176.
+
+En 2011 sort le jeu en ligne massivement multijoueur (MMORPG) Star Wars: The Old Republic développé par BioWare et édité par Electronic Arts177. Le 11 octobre 2015, Disney Interactive réorganise les jeux vidéo Star Wars après de nombreux licenciements et projets arrêtés et annonce la sortie de Star Wars Battlefront d'Electronic Arts le 17 novembre et d'un set Star Wars dans le jeu vidéo de plates-formes Disney Infinity178,179.
+
+Lors d'une conférence organisée à l'Electronic Entertainment Expo 2018 de Los Angeles, un nouveau jeu fut annoncé, il s’intitule Star Wars Jedi: Fallen Order. L'intrigue se déroule après le film Star Wars, épisode III : La Revanche des Sith. Le joueur y incarne un Padawan qui se verra traqué à la suite de la Grande purge Jedi ordonnée par l'empereur Palpatine. Ce jeu d'action-aventure à la troisième personne est développé par Respawn Entertainment180.
+
+En 2020, un nouveau jeu est annoncé181 : Star Wars: Squadrons. Disponible en version réalité virtuelle grâce à divers casques VR, Star Wars: Squadrons sort le 2 octobre 2020 dans le monde182. L'action se situe pendant la Guerre Civile Galactique après la bataille d'Endor. Des pilotes de la Nouvelle République y affrontent ceux de l'Empire Galactique182.
+
+La plupart de ces jeux sont développés par la société LucasArts fondée en 1982 et célèbre non seulement pour ses adaptations vidéo-ludiques de la saga, mais également pour d'autres séries à succès telles que les Monkey Island183.
+
+Le 9 décembre 2021, le jeu Star Wars Eclipse est annoncé lors de la cérémonie des Game Awards. Il s'agit d'un jeu se déroulant durant la période de la Haute République, développé par le studio Quantic Dream184,185.
+
+Au Summer Game Fest de juin 2023, le jeu vidéo Star Wars Outlaws est annoncé par le studio Ubisoft pour une sortie en 2024. L’action et l’histoire se déroule entre L’Empire contre-attaque et Le Retour du Jedi. Contrairement à la majorité des jeux Star Wars, il sera question de suivre l’histoire d’une hors-la-loi à travers la galaxie, et non d’un Jedi ou d’un Sith186.
+
+Autres produits dérivés
+Dès 1977, Star Wars se décline en jouets. C’est le fabricant américain Kenner Products qui obtient la licence. En 1991, à la suite du rachat de cette société par Hasbro, c’est sous le nom de cette dernière que sont ensuite fabriqués les jouets de la saga. En 2006, le livre Star Heroes Collector indique que plus de mille figurines ont été réalisées par le fabricant de jouets187. Ce n’est en revanche qu’en 1999 que la société Lego obtient la licence pour produire des jouets de construction Star Wars188.
+
+En 1987, la première attraction Star Wars, baptisée Star Tours, est lancée au parc Disneyland de Californie. Des attractions du même type sont par la suite proposées dans d’autres parcs Disney189. Toujours en 1987, c’est un jeu de rôle Star Wars qui est édité par la société West End Games190. En 1989, la même société lance aussi un jeu de figurines consacré à la saga : Star Wars Miniatures191. De nombreux jeux de cartes à collectionner sont également produits, le premier, réalisé par Topps, date de 1977192. Le 15 août 2015, lors du D23, Disney Parks annonce convertir deux terrains de 14 acres (56 656 m2) chacun pour construire Star Wars: Galaxy's Edge, des zones thématiques dédiées à Star Wars, à Disneyland en Californie et à Disney's Hollywood Studios en Floride193,194,195,196,197.
+
+Le 19 février 2016, le parc Disney's Hollywood Studios annonce présenter à compter du 4 avril un spectacle sur les moments clés de la saga Star Wars, auquel s'ajoute durant l'été un spectacle pyrotechnique nocturne intitulé Star Wars: A Galactica Spectacular198,199. Le 3 août 2017, la société The Void, en collaboration avec ILMxLAB et participant au programme Disney Accelerator, annonce qu'elle va ouvrir une salle de jeu virtuelle sur Star Wars à Downtown Disney et à Disney Springs, nommée Star Wars: Secrets of the Empire200,201,202. Le 23 novembre 2017, la salle de jeu virtuelle Star Wars: Secrets of the Empire conçue par The Void et ILMxLAB va ouvrir aussi à Londres en décembre 2018 d'abord au centre commercial Westfield London puis à celui de Stratford City203. Le 27 juin 2018, Disney UK et Public Health England lance un programme de sensibilisation au sport pour les enfants sur le thème de Star Wars, le Change4Life Train Like A Jedi programme204.
+
+Inspirations
+
+George Lucas, en 2009.
+Un univers inspiré de la fiction…
+George Lucas s’est inspiré des travaux du mythologue Joseph Campbell, à propos des origines des mythes et des religions. Lucas a ainsi réadapté plusieurs œuvres datant de l'antiquité205.
+
+Littérature
+Science-fiction
+Pour sa saga, George Lucas a puisé de nombreuses sources d'inspiration dans les livres notamment John Carter206,207,208,209,210, films et séries qui l'ont marqué. Les cycles d'Isaac Asimov posent ainsi les bases de sa conception des droïdes, mais également l'idée de planètes-villes comme Coruscant211. Un autre classique de la science-fiction inspire particulièrement le réalisateur : les serials des années 1930, notamment Flash Gordon — c'est de là que Lucas tire ses titres (lui-même revendique cet amour pour les titres de type La revanche de... et ainsi de suite) et les textes déroulants au début des films. De même, plusieurs personnages de Star Wars exploitent des stéréotypes déjà vus dans ces serials212. Le cinéma d'Akira Kurosawa, notamment son film La Forteresse cachée, inspire également particulièrement le réalisateur, tant sur le fond que sur la forme. C'est en effet de ce film qu'il tire l'idée de centrer une partie de l'intrigue sur les deux personnages les plus insignifiants (les deux droïdes, principalement dans l'épisode IV), mais Lucas s'en inspire aussi pour les volets qui se rabattent sur l'image pour servir de transition entre deux scènes, typique du cinéma de la première moitié du XXe siècle213.
+
+Fantasy, contes et mythologie
+L'inspiration est, enfin, littéraire : l'étude anthropologique de Joseph Campbell Le Héros aux mille et un visages et la légende arthurienne sont parmi ses principales sources pour créer les archétypes de son histoire, comme le jeune et pauvre héros appelé à l'aventure, le vieil ermite qui le prend sous son aile, la princesse en détresse214...
+
+Le Seigneur des anneaux de J. R. R. Tolkien est également une grande source d'inspiration pour George Lucas : les deux sagas partagent une trame très proche et des personnages assez semblables (Obi-Wan Kenobi et Gandalf, par exemple), mais aussi des procédés narratifs similaires (par exemple rapporter l'histoire d'amour de protagonistes hors du récit : Leia épouse Han Solo dans un livre de l'univers étendu, Aragorn et Arwen voient leur idylle relatée dans les appendices du livre)215.
+
+La forme du Sénat Galactique a été inspiré par les illustrations du poème de John Milton Le Paradis Perdu notamment celle du chapitre 1 dans lequel les démons se réunissent en assemblée au sein de Pandémonium216.
+
+Cinéma
+L'inspiration vient également d'autres genres cinématographiques. Le western est ainsi très présent dans certaines scènes et ambiances, notamment sur Tatooine et à travers le personnage d'Han Solo217. Le péplum joue également un rôle, notamment à travers la course qui occupe une place centrale dans La Menace fantôme et qui est directement inspirée de la course de chars de Ben Hur218. C'est le polar qui inspire le début de l'épisode II219. Les films de pirates220 et de guerre inspirent également de nombreuses scènes : l'attaque sur l'Étoile Noire est réalisée par Lucas à l'aide d'extraits de films représentant la Seconde Guerre mondiale dans les airs pour guider le travail des sociétés d'effets spéciaux ; tandis que l'assaut sur Kashyyyk dans l'épisode III s'inspire du film Il faut sauver le soldat Ryan221.
+
+Le cinéma japonais, notamment le film Les Sept Samouraïs a également beaucoup inspiré la saga : dans les costumes, surtout celui de Dark Vador, dans les combats au sabre bien sûr, et plus globalement tout l'univers des chevaliers Jedi217. Les personnages de C-3PO et R2-D2 ont été inspiré par ceux de deux paysans présent dans La Forteresse cachée222.
+
+L'univers de Star Wars s'est aussi beaucoup inspiré de l'énorme travail préparatoire accompli par Alejandro Jodorowsky en vue de son adaptation cinématographique, finalement avortée, du roman Dune de Frank Herbert223.
+
+Bandes dessinées
+Star Wars s'est aussi inspiré de l'univers graphique de la bande dessinée Valérian et Laureline de Jean-Claude Mézières224,225,226. Lorsque fut projeté pour la première fois en France Star Wars, épisode IV : Un nouvel espoir, Mézières déclara à la fin de la projection : « On dirait une adaptation de Valérian au cinéma227. »
+
+… et de la réalité
+
+Un décor de Tatooine en Tunisie pour le tournage de l'épisode I.
+George Lucas s’est également inspiré de la réalité, notamment de faits historiques. Outre les scènes de combats spatiaux inspirées des films sur le Blitz, le réalisateur s'est entre autres inspiré du Moyen Âge occidental, de l'histoire et des philosophies d'Extrême Orient217. Ainsi, les Jedi ont une philosophie teintée de bouddhisme et de taoïsme228, tandis que le casque de Dark Vador a été inspiré au dessinateur Ralph McQuarrie par ceux des samouraïs229. Lucas explique également s'être inspiré, pour la progressive ascension de Palpatine et la transition de République à Empire, de ce qui est arrivé à Jules César, Napoléon Bonaparte et Adolf Hitler230. Il admet aussi que l'Empire dépeint dans les premiers films s'est inspiré de l'époque de Richard Nixon231 et de la guerre du Viêt Nam, qui l'a poussé à s'interroger sur la façon dont une démocratie peut se transformer en dictature232,233. En 2005, Lucas a également déclaré : « J'espère qu'on ne le vivra pas dans notre pays ; peut-être que le film pourra réveiller les gens aux États-Unis, notamment face aux menaces contre la démocratie234. »
+
+Lucas s'est par ailleurs inspiré de faits de la vie quotidienne. Ainsi, l'idée d'un copilote alien, Chewbacca, lui est venue par sa chienne, de taille imposante, qui se tenait souvent sur le siège passager lorsqu'il conduisait à l'époque235. De même, le nom de Jar Jar Binks est venu d'un nom inventé par un des enfants du réalisateur236. Le court-métrage George Lucas in Love réalisé par Joe Nussbaum, parodie de Shakespeare in Love, montre d'ailleurs un jeune George Lucas s'inspirant du contexte du campus qui l'entoure pour créer l'ambiance de son premier film. Bien que parodique, ce film a été très apprécié, y compris par le réalisateur237.
+
+Postérité
+Impact culturel
+
+Mel Brooks en 2010. Il a réalisé La Folle Histoire de l'espace, parodiant Star Wars.
+Star Wars a été de nombreuses fois parodié et repris dans des films et séries. Ainsi, La Folle Histoire de l'espace est un film réalisé par Mel Brooks parodiant ceux de la trilogie originale. S'il s'inspire également d'autres films du genre comme Alien, l'influence de la saga de Lucas est très présente : le film commence par un résumé déroulant, le méchant est Lord Casque Noir, parodie de Dark Vador, on croise également Pizza the Hutt, parodie de Jabba le Hutt constituée de pizza et référence à Pizza Hut et les héros vont rencontrer le vénérable maître Yaourt, spécialiste en produits dérivés238. Les références faites à Star Wars dans des séries et sur Internet sont par ailleurs innombrables : dessins et vidéos parodiques circulent en effet sur la toile. Nombre de références à la saga sont également faites dans Les Simpson, comme dans l'épisode Boire et déboires qui parodie la sortie de l'épisode I et les réactions des fans239.
+
+Par ailleurs, Star Wars a joué un rôle important pour le cinéma, en arrivant à une époque où les genres dominants étaient le film catastrophe et la comédie satirique et où la science-fiction paraissait dépassée. Lucas lui-même produit ainsi au début des années 1980 la série des Indiana Jones réalisée par son ami Steven Spielberg. Pareillement, la décision de réaliser en 1979 Star Trek, le film est prise par la Paramount après avoir vu le succès de Star Wars238. De même, l'épisode de James Bond annoncé sous le titre Rien que pour vos yeux est retardé pour laisser place à Moonraker, qui va jusqu'à mettre en scène un combat spatial238. D'autres réalisateurs, comme Peter Jackson (Le Seigneur des anneaux), déclarent également avoir été inspirés par l'œuvre de George Lucas. Enfin, les années 1980 voient fleurir un grand nombre de navets cinématographiques reprenant les codes de la saga (le jeune fermier parti à la conquête des étoiles, les robots farceurs etc.)238.
+
+Star Wars a également marqué le cinéma par les avancées dans le domaine de la technique. Les effets spéciaux ont notamment été fortement développés, avec la création d'une société par George Lucas : Industrial Light & Magic, à l'origine par exemple des dinosaures de Jurassic Park240. L'une des branches de cette société, spécialisée dans le domaine de l'informatique, a par la suite été revendue pour devenir Pixar, à l'origine de films d'animation par ordinateur tels que Toy Story. Par ailleurs, la saga a également entraîné des innovations dans le domaine du son, avec Skywalker Sound, qui a aidé à l'élaboration de centaines de films et le système THX240. Enfin, les films de la prélogie innovent fortement dans le domaine des créatures réalisées par ordinateur, à l'image des kaminoens ou de Jar Jar Binks. Ce genre de création devient par la suite courant dans les films des années 2000 comme Le Seigneur des anneaux ou Avatar. Lucas l'explique ainsi : « Nous avons fait de Jar Jar, Sebulba et Watto des personnages crédibles, capables de jouer un rôle. [...] Nous avons ouvert une porte que n'importe qui d'autre peut désormais franchir240. »
+
+Dans la culture populaire
+
+Des cosplayers déguisés en Jedi et Sith en 2006.
+Star Wars a un important impact sur la culture populaire. Ses répliques deviennent vite cultes, comme « que la Force soit avec toi »j, ou encore le « Je suis ton père » de Vador. Le titre même de Star Wars est réutilisé dans le contexte pourtant très éloigné de la Guerre froide. En effet, lorsque Ronald Reagan propose le programme Initiative de défense stratégique visant à préparer la défense du territoire contre les missiles soviétiques, son projet est très vite surnommé « Star Wars », à tel point que Lucasfilm intente, et perd, un procès à ce sujet241.
+
+L'enthousiasme pour Star Wars entraîne de grandes réunions de fans de par le monde à l'occasion de la sortie des films ou dans d'autres cadres. Un fan club officiel s'est ainsi formé aux États-Unis : Star Wars Hyperspace. Des conventions ont également lieu. Certaines sont organisées par Lucasfilm comme la Star Wars Celebration dont la quatrième édition s'est par exemple tenue à Los Angeles en mai 2007 avec notamment Carrie Fisher242 alors que la sixième eut lieu en août 2012 à Orlando243. En France, Star Wars Reunion, organisée par Lucasfilm Magazinek, s'est tenue au cinéma Le Grand Rex à Paris en mai 2005 et octobre 2007. La deuxième édition de cette convention française donna lieu à une diffusion marathon en deux jours des six films de la série et proposait comme invités le producteur Rick McCallum et Roger Carel, doubleur français de C-3PO244. Des évènements indépendants de Lucasfilm ayant parmi leurs sujets principaux la saga Star Wars ont également lieu chaque année comme Star Wars Fan Days (Dallas, États-Unis), FACTS245 (Gand, Belgique), Générations Star Wars et Science Fiction246 (Cusset, France) ou encore la JediCon247 (Düsseldorf, Allemagne). Un grand nombre de fans pratiquent le cosplay lors de ces événements, donnant parfois lieu à la naissance de véritables associations telles que la 501e légion qui tire son nom d'une compagnie de stormtroopers et se met souvent au service d’œuvres caritatives248.
+
+Par ailleurs, l'activité des fans passe aussi par l'animation de sites web et d'encyclopédies en ligne sur l'univers de la saga. De véritables débats naissent parfois au sujet de certains personnages et certaines scènes. La sortie de l'épisode I voit ainsi apparaître sur le web une vague de haine à l'encontre de Jar Jar Binks249. Des polémiques naissent également sur les versions refaites de la trilogie originale, sorties en 1997 puis 2004, comme en témoigne le slogan Han shot first, considérant que la retouche d'une scène de l'épisode IV frôle l'hérésie250. L'implication des fans va parfois très loin, comme avec le phénomène Jedi de 2001 : lors de recensements dans les pays anglophones, nombre de gens ont, généralement en signe de contestation ou par humour, répondu « chevalier Jedi » à la question « quelle est votre religion ? »251. Certains revendiquent également plus sérieusement leur appartenance au jediisme (les chiffres allant jusqu'à 500 000 membres de l’International Church of Jediism) et ceux-ci se sont vus refuser l'agrément au même titre que les religions et croyances, lorsqu'une commission britannique a étudié, en 2010, les discriminations sur les opinions. La commission a en effet expliqué que « les croyances [concernées par la loi] doivent être sincères »252.
+
+Place des femmes dans la saga
+Dans les six premiers films de la saga Star Wars, les femmes ont une place strictement définie, les films étant majoritairement réservés à un public masculin. En janvier 2015, George Lucas (créateur et réalisateur de 4 des 9 longs métrages sortis) confirme qu'il a « fait Star Wars pour les garçons de 12 ans ». Ainsi, les personnages de Padmé Amidala et de Leia Organa apparaissent à première vue comme des héroïnes puissantes, la première étant une reine qui devient ensuite sénatrice et la seconde étant l'une des chefs de l'Alliance rebelle (une organisation qui s'oppose à l'Empire). Cependant, la sénatrice Amidala devient par exemple éperdument amoureuse du personnage central Anakin Skywalker et finit par mourir en accouchant de leurs enfants. Le cas de la princesse Leia est discuté : si elle apparaît régulièrement comme une femme forte, sa sexualisation dans l'épisode VI marque les esprits et prête à polémique253,254,255. La faible importance des femmes s'illustre par le temps de parole qui leur est consacrée, au total, sur les 586 minutes des trois premiers films (Un nouvel espoir, L'Empire contre-attaque, Le Retour du Jedi), les femmes occupant un rôle secondaire ne parlent qu'une seule minute256.
+
+Depuis le rachat de Lucasfilm par The Walt Disney Company en 2012, les choses évoluent. Les films intègrent des héroïnes qui se détachent de l'image véhiculée par les femmes dans les six premiers films. Loin d'être victimes des événements, les femmes — qui occupent également les rôles principaux — deviennent des personnages débrouillards, indépendants et capables de vaincre des hommes potentiellement plus puissants à l'image de Rey dans le film sorti en 2015, Le Réveil de la Force dont le titre même est lié au fait qu'elle découvre ses pouvoirs au cours du récit. Ce même film met en scène des femmes ayant des rôles à responsabilité comme des chefs militaires et une chef de bande. Elles peuvent également être très bagarreuses comme Jyn Erso qui est comparable à Jeanne d'Arc dans Rogue One: A Star Wars Story, sorti en 2016254.
+
+Dans l'industrie cinématographique, tandis que J. J. Abrams (réalisateur, scénariste et producteur de Le Réveil de la Force) déclare : « Star Wars a toujours été un truc de garçons, et un film où les pères emmènent leur fils. Et, bien que ce soit encore beaucoup le cas, j'espère vraiment que pour ce film, des mères emmèneront aussi leur fille le voir ». Le Réveil de la Force a accueilli un public composé de femmes à un tiers257. Aussi, alors qu'une polémique relaye que les revenus des hommes sont supérieurs aux revenus des femmes pour un même niveau de popularité258, Felicity Jones, l'actrice principale de Rogue One: A Star Wars Story est celle qui parmi les acteurs principaux a reçu le revenu le plus élevé259. Un effort a également été accompli dans la parité entre hommes et femmes, les deux sexes étant représentés à égalité dans les équipes chargées de l'écriture du film de 2015. De plus, Kathleen Kennedy, présidente de Lucasfilm Ltd., soutenue par J.J. Abrams, est favorable à la réalisation de films par une femme256. En revanche, le personnage de Rey a tardé à apparaître dans les produits dérivés de l’épisode VII, Lucasfilm craignant que ses reproductions ne se vendent pas. Mais après des accusations de sexisme, Disney a finalement lancé des produits à l'effigie de Rey en affirmant que certains jouets étaient « gardés secrets » pour protéger l'intrigue du film260,261. Peu avant la sortie du Réveil de la Force, Disney décide de ne plus commercialiser de produit dérivé représentant Leia dans son bikini de l’épisode VI262.
+
+Le 13 avril 2017, juste avant la Star Wars Celebration se tenant à Orlando, Lucasfilm dévoile qu'une série de courts métrages animés sont en cours de production263. Ces derniers mettent au cœur de leur intrigue chacune des principales héroïnes de la franchise : Leia Organa, Padmé Amidala, Rey, Jyn Erso, Sabine Wren et Ahsoka Tano. L'objectif de cette série intitulée Star Wars : Forces du destin est de « permettre au jeune public de mieux les comprendre et découvrir différentes facettes de leur personnalité (héroïsme, ténacité, courage...). Nous allons donc y retrouver tout leur univers, en abordant des histoires tantôt liées à leur passé, tantôt à leur présent » selon Carrie Beck, productrice et scénariste chez Lucasfilm Animation264.
+
+Notes et références
+Notes
+Prononciation en anglais américain retranscrite selon la norme API.
+Les épisodes IV, V et VI ont la particularité d'avoir été tournés avant les épisodes I, II et III, bien que l'histoire qu'ils mettent en scène soit située chronologiquement après.
+La phrase « il y a bien longtemps, dans une galaxie très lointaine », inscrite à l'écran au début de chaque film, semble toutefois indiquer que le récit se situe dans le passé et non dans le futur.
+Il constitue donc le nouveau canon de Star Wars.
+D'abord définie comme un concept flou, mais maître Qui-Gon Jinn explique au jeune Anakin Skywalker que les êtres sensibles à la Force sont ceux qui présentent un fort taux de midi-chloriens, des micro-organismes présents dans tous les êtres vivants. Cet ajout d'une dimension à la Force a déçu une partie des fans originaux de la série qui appréciaient son caractère spirituel et religieux ; cependant, George Lucas a précisé que l'idée des midi-chloriens, bien que jamais expliquée dans la trilogie originale, existait bien dès la réalisation du premier film.
+La Guerre des Clones est appelée Guerre Noire dans la version française de 1977.
+Le personnage de Mace Windu inspire finalement celui du Jedi du même nom dans l'épisode I.
+Il doit également marquer une transition pour les personnages : ainsi, Ewan McGregor calque son jeu sur celui d'Alec Guinness et reprend sa toute première réplique de l'épisode IV, « Hello there ! » (traduit par « Bonjour toi ! » en version française).
+Il a ainsi rejeté la demande de ceux qui voulaient que Dark Vador apparaisse dès l'épisode II pour pallier le manque de succès du premier opus.
+« May the Force be with you » en version originale.
+Magazine du Fan Club Officiel Star Wars en France renommé par la suite Star Wars Magazine puis disparu en 2009.
+Références
+Sources primaires
+Drew Karpyshyn, La Règle des deux, Fleuve Noir, 2009, 377 p. (ISBN 226508784X).
+George Lucas, Star Wars, épisode I : La Menace fantôme, 20th Century Fox, 1999.
+George Lucas, Star Wars, épisode II : L'Attaque des clones, 20th Century Fox, 2002.
+George Lucas, Star Wars, épisode III : La Revanche des Sith, 20th Century Fox, 2005.
+George Lucas, Star Wars, épisode IV : Un nouvel espoir, 20th Century Fox, 1977.
+George Lucas, Star Wars, épisode V : L'Empire contre-attaque, 20th Century Fox, 1980.
+George Lucas, Star Wars, épisode VI : Le Retour du Jedi, 20th Century Fox, 1983.
+J. J. Abrams, Star Wars, épisode VII : Le Réveil de la Force, Walt Disney Studios Motion Pictures International, 2015.
+Tom Veitch, Star wars : L'empire des ténèbres, Dark Horse France, 1998, (ISBN 2841640167).
+R.-A. Salvatore, Star Wars : le nouvel ordre Jedi. Vecteur prime, Fleuve noir, 2001, 485 p., (ISBN 2265071633).
+John Ostrander, Jan Duursema et Al., Star Wars Legacy, Dark Horse Books, 2007.
+Sources secondaires
+Fetjaine 2018.
+Patrice Girod, « L'Histoire : Toutes les grandes étapes du film », Lucasfilm Magazine : Le Guide officiel du film La Menace fantôme, no hors série no 1,‎ automne 1999.
+« L'Univers Etendu abandonné au profit du Nouveau Canon [archive] », sur StarWars-Holonet.com, 4 juin 2014 (consulté le 9 août 2015)
+Ryder Windham 2006, p. 25
+Ryder Windham 2006, p. 48
+Ryder Windham 2006, p. 52 - 59
+Gareth Edwards, Rogue One: A Star Wars Story, Walt Disney Pictures, 2016.
+Ryder Windham 2006, p. 84 - 85
+Ryder Windham 2006, p. 95
+Ryder Windham 2006, p. 102 - 103
+(en) « Lucasfilm Unveils New Plans for Star Wars Expanded Universe [archive] », sur Yahoo.com (consulté le 10 août 2015)
+(en) « The New Republic [archive] », sur StarWars.com (consulté le 26 janvier 2016).
+(en) « Jakku [archive] », sur StarWars.com (consulté le 26 janvier 2016).
+(en) « The First Order [archive] », sur StarWars.com (consulté le 26 janvier 2016).
+(en) « The Resistance [archive] », sur StarWars.com (consulté le 26 janvier 2016).
+Ryder Windham 2006, p. 106 - 109
+Ryder Windham 2006, p. 110 - 111
+« Le sabre laser », sur www.cite-sciences.fr (consulté le 19 juillet 2023)
+Labrousse et Schall 2007, p. 255 - 256
+Labrousse et Schall 2007, p. 245 - 250
+Labrousse et Schall 2007, p. 236 - 243
+Jonathan W. Rinzler 2007, p. 17
+Labrousse et Schall 2007, p. 260
+Labrousse et Schall 2007, p. 224
+Labrousse et Schall 2007, p. 225
+Fabrice Nicot, « Et si les planètes de Star Wars existaient... », Science et Vie junior, no 206, novembre 2006, p. 52 – 57.
+Labrousse et Schall 2007, p. 232
+Dan Wallace, « Les Planètes Inédites de la Trilogie Classique », Lucasfilm Magazine, no 71, mai/juin 2008, p. 50 – 54.
+Jonathan Wilkins, « Maître et apprenti », Lucasfilm Magazine, septembre - octobre 2008, no 73, p. 30 – 32.
+(en) « A novice's guide to Star Wars » [archive], BBC News. Consulté le 18 août 2010.
+Labrousse et Schall 2007, p. 208
+Jonathan W. Rinzler 2007, p. 8
+Jonathan W. Rinzler, « Aux sources de la saga », Lucasfilm Magazine, no 64, mars-avril 2007, p. 14 – 19.
+Star Wars - L'Empire des rêves ((en) Empire of Dreams: The Story of the Star Wars Trilogy) documentaire d'Edith Becker et Kevin Burns, 2004, chapitre 1.
+Labrousse et Schall 2007, p. 50
+Labrousse et Schall 2007, p. 56
+Labrousse et Schall 2007, p. 57
+Brian J. Robb, Jonathan Wilkins et Brigid Cherry, « Luke & Leia », Lucasfilm Magazine, no 69, janvier-février 2008, p. 14 – 22.
+Labrousse et Schall 2007, p. 61
+Star Wars - L'Empire des rêves ((en) Empire of Dreams: The Story of the Star Wars Trilogy) documentaire d'Edith Becker et Kevin Burns, 2004, chapitre 2.
+(en) « How Star Wars Surprised the World » [archive], American Heritage. Consulté le 11 janvier 2011.
+Labrousse et Schall 2007, p. 78
+Star Wars - L'Empire des rêves ((en) Empire of Dreams: The Story of the Star Wars Trilogy) documentaire d'Edith Becker et Kevin Burns, 2004, chapitre 5.
+Labrousse et Schall 2007, p. 79
+Labrousse et Schall 2007, p. 83
+Ryder Windham 2006, p. 116
+Labrousse et Schall 2007, p. 98
+Star Wars - L'Empire des rêves ((en) Empire of Dreams: The Story of the Star Wars Trilogy) documentaire d'Edith Becker et Kevin Burns, 2004, chapitre 6.
+Labrousse et Schall 2007, p. 99
+Ryder Windham 2006, p. 117
+Labrousse et Schall 2007, p. 100
+Star Wars - L'Empire des rêves ((en) Empire of Dreams: The Story of the Star Wars Trilogy) documentaire d'Edith Becker et Kevin Burns, 2004, chapitre 9.
+Star Wars - L'Empire des rêves ((en) Empire of Dreams: The Story of the Star Wars Trilogy) documentaire d'Edith Becker et Kevin Burns, 2004, chapitre 10.
+Labrousse et Schall 2007, p. 107
+Labrousse et Schall 2007, p. 113
+Labrousse et Schall 2007, p. 121
+Labrousse et Schall 2007, p. 122
+Labrousse et Schall 2007, p. 124
+Labrousse et Schall 2007, p. 132 - 133
+Labrousse et Schall 2007, p. 132
+Labrousse et Schall 2007, p. 133
+Ryder Windham 2006, p. 121
+Labrousse et Schall 2007, p. 137 - 139
+Laurent Jullier 2005, p. 159 - 160
+Labrousse et Schall 2007, p. 168
+Laurent Jullier 2005, p. 160 - 162
+Labrousse et Schall 2007, p. 175
+Labrousse et Schall 2007, p. 178 - 179
+Labrousse et Schall 2007, p. 183
+Labrousse et Schall 2007, p. 199 - 200
+(en) « Show Business: I've Got to Get My life Back Again » [archive], Time Magazine. Consulté le 18 août 2010.
+(fr) « L'univers étendu pour les nuls : les romans » [archive], starwars-universe.com. Consulté le 8 janvier 2012.
+(en) « No Star Wars Sequels Says Lucas » [archive], BBC News. Consulté le 18 août 2010.
+(en) « Gary Kurtz Reveals Original Plans for Episodes 1-9 » [archive], TheForce.Net. Consulté le 15 décembre 2011
+(en) « Will Lucas Extend His 'Star Wars' Story Beyond 'Return of the Jedi'? » [archive], Cinematical. Consulté le 18 août 2010.
+Pablo Hidalgo, « Demandez au maître », Lucasfilm Magazine, mars-avril 2007, no 64, p. 52.
+Labrousse et Schall 2007, p. 415
+« Dans les coulisses du rachat de Lucasfilm [archive] », sur Star Wars Universe, mars 2013 (consulté le 23 avril 2019)
+« George Lucas and Kathleen Kennedy Talk STAR WARS: EPISODE VII [archive] », Collider, 20 novembre 2013 (consulté le 4 janvier 2014)
+« Disney annonce la sortie d'un Star Wars 7 » [archive]
+« Disney rachète LucasFilm et prépare un Star Wars 7 pour 2015 [archive] », Première, 30 octobre 2012 (consulté le 30 octobre 2012)
+« Disney annonce la sortie de La Guerre des étoiles 7 » [archive], sur lesechos.fr, 30 octobre 2012
+« Star Wars : les dates de sortie des épisodes VIII et IX confirmées [archive] », sur Allocine.fr, 30 janvier 2015 (consulté le 9 février 2015)
+(en) « Disney annonce la sortie de La Guerre des étoiles 7 [archive] », sur LePoint.fr (consulté le 30 octobre 2012)
+Disney rachète Lucasfilm et prévoit le nouveau Star Wars pour 2015 [archive], consulté le 30 octobre 2012
+« Star Wars: The Force Awakens (2015) - Box Office Mojo [archive] », sur Box Office Mojo (consulté le 20 décembre 2016)
+Ben Child, « Star Wars: Episode IX's Colin Trevorrow promises 'profoundly satisfying' Rey reveal [archive] », sur the Guardian (consulté le 20 décembre 2016)
+« J. J. Abrams to write and direct Star Wars : Episode IX [archive] », sur starwars.com, 12 septembre 2017 (consulté le 12 septembre 2017)
+« Star Wars : Colin Trevorrow confirme la fuite de son scénario Duel of the Fates [archive] », sur IGN, 24 janvier 2020 (consulté le 16 mars 2022).
+(en) Nellie Andreeva, « Turner Nabs 10 ‘Star Wars’ Movies In Mega Deal With Walt Disney Studios [archive] », sur deadline.com, 14 septembre 2016 (consulté le 2 août 2018)
+(en) Cynthia Littleton, « Turner Sets Massive ‘Star Wars’ Movie Rights Deal with Disney [archive] », sur Variety, 14 septembre 2016 (consulté le 2 août 2018)
+(en) Jonathan M. Gitlin, « Original Star Wars movies blocked from Disney streaming until 2024 [archive] », sur Ars Technica, 8 mars 2018 (consulté le 8 octobre 2018)
+A. F. P. agence et lefigaro.fr, « Carrie Fisher ne ressuscitera (finalement) pas en Princesse Leia », Le Figaro,‎ 15 janvier 2017 (ISSN 0182-5852, lire en ligne [archive], consulté le 16 janvier 2017)
+« L'épisode 9 de la série Star Wars sortira en mai 2019 », L'Express.fr,‎ 25 avril 2017 (lire en ligne [archive], consulté le 26 avril 2017)
+(en) Lucas Shaw, « Disney Is Seeking ‘Star Wars’ Rights Back From TBS, TNT [archive] », sur Bloomberg News, 2 août 2018 (consulté le 22 mars 2019)
+(en) Cameron Bonomolo, « Disney Wants ‘Star Wars’ TV Rights Back After Selling to Turner [archive] », sur comicbook.com, 2 août 2018 (consulté le 22 mars 2019)
+« Disney annonce une nouvelle trilogie "Star Wars" », Huffigtonpost.fr,‎ 9 novembre 2017 (lire en ligne [archive], consulté le 9 novembre 2017)
+(en-US) « Rian Johnson, Writer-Director of Star Wars: The Last Jedi, to Create All-New Star Wars Trilogy | StarWars.com », StarWars.com,‎ 9 novembre 2017 (lire en ligne [archive], consulté le 10 novembre 2017)
+(en) Sophie Lewis, « Disney just announced three new "Star Wars" films and four "Avatar" sequels [archive] », sur CBS News, 7 mai 2019 (consulté le 15 janvier 2020)
+(en) Isabel Soisson, « Disney delays ‘Avatar 2,’ sets dates for three ‘Star Wars’ films [archive] », sur CNBC, 7 mai 2019 (consulté le 15 janvier 2020)
+Aymeric Parthonnaud, « Le prochain "Star Wars" sera écrit par les showrunners de "Game of Thrones" [archive] », sur RTL.fr, 14 mai 2019 (consulté le 20 mai 2019)
+Maxime Bedini, « Star Wars : les créateurs de GoT annulent leur trilogie [archive] », sur CinéSéries, 29 octobre 2019 (consulté le 29 octobre 2019)
+AlloCine, « Star Wars: The Clone Wars [archive] », sur AlloCiné (consulté le 27 janvier 2017)
+Sarah Ellison, « Meet the Most Powerful Woman in Hollywood [archive] », sur HWD, 8 février 2016 (consulté le 20 décembre 2016)
+Brian Gallagher, « Star Wars Spin-Offs Will Not Crossover with the New Trilogy [archive] », sur movieweb.com (consulté le 20 décembre 2016)
+Clément Cuyer, « Star Wars : le prochain film de la saga sera écrit par les créateurs de Game of Thrones ! [archive] », sur Allociné, 14 mai 2019 (consulté le 15 mai 2019)
+(en) Anthony D'Alessandro, « 'Mandalorian & Grogu', 'Moana' Live Action & 'Toy Story 5' Stake Out 2026 Release Dates » [archive du 5 avril 2024], sur Deadline.com, 5 avril 2024 (consulté le 5 avril 2024)
+(fr) « Oscars 1978 - Nominations » [archive], cinemovies.fr. Consulté le 13 octobre 2010
+(fr) « Oscars 1978 - Le palmarès » [archive], cinemovies.fr. Consulté le 13 octobre 2010
+(fr) « Oscars 1981 - Le palmarès » [archive], cinemovies.fr. Consulté le 13 octobre 2010
+(fr) « Oscars 1984 - Le palmarès » [archive], cinemovies.fr. Consulté le 13 octobre 2010
+Laurent Jullier 2005, p. 154 - 155
+Laurent Jullier 2005, p. 156
+Laurent Jullier 2005, p. 157
+(en) « Star Wars: Episode IV - A New Hope » [archive], Metacritic. Consulté le 8 décembre 2011
+(en) « Star Wars: Episode V - The Empire Strikes Back » [archive], Metacritic. Consulté le 8 décembre 2011
+(en) « Star Wars: Episode VI - Return of the Jedi » [archive], Metacritic. Consulté le 8 décembre 2011
+(fr) « Oscars 2000 - Nominations » [archive], cinemovies.fr. Consulté le 13 octobre 2010
+(en) John Wilson, « Razzie announce worst in film nominees for 1999, the 90's and the century ! » [archive], Razzies. Consulté le 13 octobre 2010
+(en) « Razzie Awards 2000 » [archive], Plume Noire. Consulté le 13 octobre 2010
+Laurent Jullier 2005, p. 159
+(en) « Star Wars: Episode I - The Phantom Menace » [archive], Metacritic. Consulté le 8 décembre 2011
+(en) « Mystery of Star Wars phantom edit » [archive], BBC News. Consulté le 8 décembre 2011
+Labrousse et Schall 2007, p. 148
+(fr) « Oscars 2003 - Nominations » [archive], cinemovies.fr. Consulté le 13 octobre 2010
+(fr) « Oscars 2006 - Nominations » [archive], cinemovies.fr. Consulté le 13 octobre 2010
+(en) « Star Wars: Episode II - Attack of the Clones » [archive], Metacritic. Consulté le 8 décembre 2011
+(en) « Star Wars: Episode III - Revenge of the Sith » [archive], Metacritic. Consulté le 8 décembre 2011
+Labrousse et Schall 2007, p. 201
+Labrousse et Schall 2007, p. 203 - 204
+Labrousse et Schall 2007, p. 171
+Labrousse et Schall 2007, p. 118
+Labrousse et Schall 2007, p. 117
+Labrousse et Schall 2007, p. 116
+Labrousse et Schall 2007, p. 169 - 170
+(fr) « Lucas a-t-il réussi le nouveau lifting de Star Wars en Blu-ray ? » [archive], Le Figaro.fr. Consulté le 10 janvier 2012
+« Star Wars en 3D pour 2012 ! [archive] », 29 septembre 2010 (consulté le 10 janvier 2011).
+(en) « La Menace Fantôme : seul volet Star Wars en 3D ? [archive] », 15 juin 2011 (consulté le 10 janvier 2011).
+« Star Wars : épisode 1 - La Menace fantôme 3D en février 2012 [archive] » (consulté le 10 janvier 2011).
+« Lucasfilm annule les ressorties 3D de L’ATTAQUE DES CLONES et LA REVANCHE DES SITH [archive] » (consulté le 14 mai 2014).
+Pablo Hidalgo, Demandez au maître, Star Wars Magazine, janvier-février 2009, no 75, p. 28 – 29.
+(en) « The legendary Star Wars Expanded Universe turns a new page [archive] », 25 avril 2014 (consulté le 26 avril 2014)
+« [Delcourt] Planning des parutions pour 2015 [archive] », sur Starwars-universe.com, 9 février 2015 (consulté le 11 février 2015)
+(en) « Lucasfilm Unveils New Plans for Star Wars Expanded Universe [archive] », 25 avril 2014 (consulté le 20 juillet 2015)
+Ryder Windham 2006, p. 130
+(en) Amelia Hill, « The Star Wars Holiday Special » [archive], About.com. Consulté le 29 novembre 2011
+Labrousse et Schall 2007, p. 114
+Ryder Windham 2006, p. 131
+Labrousse et Schall 2007, p. 417
+« Star Wars Rebels : La nouvelle série animée annoncée ! [archive] »
+Clément Cuyer, « Star Wars Forces of Destiny : une série animée sur les héroïnes de la saga ! [archive] », sur Allociné, 13 avril 2017 (consulté le 30 mai 2017).
+Labrousse et Schall 2007, p. 418-319
+« Star Wars : la série télé ne verra pas le jour avant trois ans ! [archive] », sur Première, 15 juin 2011 (consulté le 29 novembre 2011).
+« La série live "Star Wars"... a un titre ! [archive] », sur Allociné, 14 janvier 2012 (consulté le 6 août 2013).
+Gauthier Jurgensen, « Star Wars : il n’y aura pas de série en live action… pour le moment [archive] », sur Allociné, 25 janvier 2016 (consulté le 31 janvier 2017).
+« Star Wars : Jon Favreau nommé showrunner de la série live action ! - Les Toiles Héroïques », Les Toiles Héroïques,‎ 8 mars 2018 (lire en ligne [archive], consulté le 31 mai 2018)
+« Star Wars : Une série live action en 2019 ! - Les Toiles Héroïques », Les Toiles Héroïques,‎ 10 novembre 2017 (lire en ligne [archive], consulté le 31 mai 2018)
+« The Mandalorian, la première série live Star Wars, dévoile son histoire [archive] », sur Le Journal du geek, 4 octobre 2018 (consulté le 5 octobre 2018).
+Laurent Jullier 2005, p. 178
+Laurent Jullier 2005, p. 179
+Laurent Jullier 2005, p. 181
+Laurent Jullier 2005, p. 180
+Ryder Windham 2006, p. 132
+Laurent Jullier 2005, p. 182 - 183
+(en) « Les comics Star Wars reviendront chez Marvel [archive] » (consulté le 25 janvier 2015)
+(fr) « Fiche de Star Wars: The Empire Strikes Back [archive] », sur Jeuxvideo.com (consulté le 18 décembre 2010)
+(fr) « Fiche de Star Wars: X-Wing [archive] », sur Jeuxvideo.com (consulté le 18 décembre 2010)
+(fr) « Fiche de Star Wars: Dark Forces. [archive] », sur Jeuxvideo.com (consulté le 18 décembre 2010)
+(fr) Lightman, « Test de Star Wars: Rogue Squadron sur PC. [archive] », sur Jeuxvideo.com, 23 décembre 1998 (consulté le 18 décembre 2010)
+(fr) Lightman, « Test de Star Wars, épidosde I : La Menace fantôme sur PC. [archive] », sur Jeuxvideo.com, 11 juin 1999 (consulté le 18 décembre 2010)
+(fr) Logan, « Test de Star Wars, épisode III : La Revanche des Sith sur PS2/Xbox. [archive] », sur Jeuxvideo.com, 6 mai 2005 (consulté le 18 décembre 2010)
+(fr) « Fiche de Star Wars Battlefront [archive] », sur Jeuxvideo.com (consulté le 18 décembre 2010)
+(fr) Super panda, « Test de Star Wars: Empire at War sur PC. [archive] », sur Jeuxvideo.com, 17 février 2006 (consulté le 18 décembre 2010)
+Ryder Windham 2006, p. 134
+(fr) Brian J. Ross et Jonathan Wilkins, « "Tu es engagé" pour être l'apprenti secret de Dark Vador », Lucasfilm Magazine, no 69, janvier/février 2008, p. 38 – 44.
+(fr) Dinowan, « Test de Star Wars : Le Pouvoir de la Force II sur PC. [archive] », sur Jeuxvideo.com, 29 octobre 2010 (consulté le 18 décembre 2010)
+(en) Steve Butts, « Star Wars: The Old Republic Preview [archive] », IGN, 14 mai 2014 (consulté le 22 octobre 2008).
+(en) Brooks Barnes, Nick Winfield, « Disney Reboots ‘Star Wars’ Video Games [archive] », sur The New York Times, 11 octobre 2015 (consulté le 22 mars 2016)
+(en) Ben Geier, « Disney overhauls Star Wars video games [archive] », sur Fortune, 12 octobre 2015 (consulté le 22 mars 2016)
+« [E3] Star Wars : Un nouveau jeu vidéo annoncé...Star Wars Jedi - Fallen Order ! - Les Toiles Héroïques », Les Toiles Héroïques,‎ 9 juin 2018 (lire en ligne [archive], consulté le 11 juin 2018)
+« Unannounced Star Wars: Project Maverick leaks onto PlayStation Store | Eurogamer [archive] », sur www.eurogamer.net (consulté le 17 octobre 2020)
+(en-US) « Star Wars: Squadrons, a New Space Combat Game, Coming October 2 [archive] », sur StarWars.com (consulté le 17 octobre 2020)
+(en) LucasArts [archive]. Consulté le 29 novembre 2011
+(en) Erik Kain, « ‘Star Wars Eclipse’ Gets The Best Trailer Of ‘The Game Awards’ [archive] », sur Forbes (consulté le 10 décembre 2021)
+« Star Wars Eclipse – Official Cinematic Reveal Trailer [archive] » (consulté le 10 décembre 2021)
+« Star Wars Outlaws: la promesse d’"un jeu exceptionnel pour les fans et ceux qui ne le sont pas" [archive] », sur BFMTV (consulté le 15 juin 2023)
+(en + de) Fantasia-Team, Star Heroes Collector 2006 : Internationale Version, Dreieich, Fantasia Verlag GmbH, 2005 (ISBN 978-3935976329)
+Ryder Windham 2012, p. 178
+Hidalgo, Wallace et Windham 2012, p. 134
+Hidalgo, Wallace et Windham 2012, p. 136
+Hidalgo, Wallace et Windham 2012, p. 144
+Hidalgo, Wallace et Windham 2012, p. 58
+(en) Eliana Dockterman, « Star Wars Theme Parks Are Coming to Disney World and Disneyland [archive] », sur Time, 15 août 2015 (consulté le 25 février 2016)
+(en) Bryan Alexander, Carly Mallenbaum, « Disney parks adding 'Star Wars'-themed lands [archive] », sur USA Today, 15 août 2015 (consulté le 25 février 2016)
+(en) Anthony Breznican, « Disney announces Star Wars will be part of its theme parks [archive] », sur Entertainment Weekly, 15 août 2015 (consulté le 25 février 2016)
+(en) Corinne Heller, « Star Wars-Themed Lands Coming to Disneyland and Disney World Theme Parks [archive] », sur eonline.com, 15 août 2015 (consulté le 25 février 2016)
+(en) Brooks Barnes, « Disney Bulks Up Theme Parks, as Universal Gains Ground [archive] », sur The New York Times, 15 août 2015 (consulté le 25 février 2016)
+(en) Alyssa Sage, « ‘Star Wars’ Stage, Fireworks Shows to Début at Disney’s Hollywood Studios [archive] », sur Variety, 19 février 2016 (consulté le 26 juillet 2016)
+(en) Associated Press, « Star Wars blitz continues at Walt Disney World [archive] », sur The Florida Times-Union, 19 février 2016 (consulté le 26 juillet 2016)
+(en) Brooks Barnes, « Virtual-Reality Star Wars Attractions Coming to Disney Malls [archive] », sur The New York Times, 3 août 2017 (consulté le 19 février 2018)
+(en) Alexa D'Angelo, « 'Star Wars' virtual reality attraction to open at Downtown Disney this year [archive] », sur Los Angeles Times, 3 août 2017 (consulté le 19 février 2018)
+(en) Lucas Matney, « The Void is bringing a location-based Star Wars VR experience to Disney resorts [archive] », sur TechCrunch, 3 août 2017 (consulté le 19 février 2018)
+(en) Brittani Tuttle, « Star Wars VR to open in London alongside Disney Springs this December [archive] », sur attractionsmagazine, 23 novembre 2017 (consulté le 30 mars 2018)
+(en) Communiqué de presse, « PHE and Disney UK launch Change4Life Train Like A Jedi programme [archive] », sur Département de la Santé, 27 juin 2018 (consulté le 18 mars 2019)
+Vincent Chollier, « Star Wars : les origines antiques du mythe populaire », dans Antiquipop : La référence à l’Antiquité dans la culture populaire contemporaine, MOM Éditions, coll. « Travaux de la Maison de l’Orient et de la Méditerranée », 18 décembre 2018 (ISBN 978-2-35668-066-2, lire en ligne [archive])
+« Why John Carter of Mars is the original Star Wars film [archive] », sur www.inafarawaygalaxy.com (consulté le 23 septembre 2016)
+(en-US) « The Cinema Behind Star Wars: John Carter [archive] », sur StarWars.com, 21 décembre 2015 (consulté le 23 septembre 2016)
+« De John Carter à Star Wars : Le prix de l'imaginaire [archive] », sur www.capturemag.net (consulté le 23 septembre 2016)
+« Man of Extremes [archive] », sur The New Yorker (consulté le 23 septembre 2016)
+(en-US) « Disney May Be Making A Sequel To John Carter Because Everything Is Terrible [archive] », sur Bitter Empire, 22 septembre 2015 (consulté le 23 septembre 2016)
+Labrousse et Schall 2007, p. 36
+Labrousse et Schall 2007, p. 38
+Laurent Jullier 2005, p. 45
+Labrousse et Schall 2007, p. 278 - 292
+Une analyse très précise de ces similitudes est faite dans l'ouvrage collectif Tolkien, un autre regard sur la Terre du Milieu (2005) par Cyril Rolland, p. 42-52.
+(en) James Hamilton, Fields of Influence: Conjunctions of Artists and Scientists 1815-1860 (lire en ligne [archive]), p. 14-15
+Frédéric Ducarme, « La nature dans "Star Wars" [archive] », sur Le Monde, 16 janvier 2016.
+Laurent Jullier 2005, p. 69
+Labrousse et Schall 2007, p. 42
+Emmanuel Pasquier, « Star Wars IV, V, VI. Un univers géocentrique. [archive] », sur Implications Philosophiques, 12 octobre 2020.
+Laurent Jullier 2005, p. 60
+(en) Katelin McDougald, « Star Wars and The Hidden Fortress: Similarities and Differences With Lucas' Influence [archive] », sur MovieWeb, 1er juin 2022 (consulté le 10 avril 2023)
+Jodorowsky's Dune de Frank Pavich (France/États-Unis, 2013, 1 h 27 min), diffusé par Arte en 2019 [présentation en ligne [archive]] et sur le site d'Arte.tv [archive].
+Exposition à la Japan Expo 2010 des couvertures des 26 tomes de la série Valérian et Laureline, de 16 dessins tirés de la préparation du film Le cinquième Élément de Luc Besson et un tableau comparatif des univers de Star Wars et Valérian. Du 1 au 4 juillet 2010
+« Star Wars a-t-il tout piqué à la BD française ? Le (faux) procès de George Lucas [archive] », sur Franceinfo, 16 décembre 2015 (consulté le 5 septembre 2022)
+(en-US) Izak Bulten, « Star Wars: 10 Things It Took From The Valerian Series [archive] », sur ScreenRant, 9 avril 2020 (consulté le 5 septembre 2022)
+Pierre Christin, Jean-Claude Mézières, Stan Barets, Comment tout a commencé » dans Valérian et Laureline, Dargaud, 2007, p. 26
+Adèle Van Reeth, « Philosopher avec Star Wars : Épisode 2 : "Que la force soit avec toi" [archive] », sur France Culture, 22 décembre 2015.
+Labrousse et Schall 2007, p. 45 - 47
+(en) George Lucas, commentaire du réalisateur sur La Revanche des Sith, 20th Century Fox, 2005.
+(en-US) « The 'Star Wars' character inspired by President Richard Nixon [archive] », sur faroutmagazine.co.uk, 27 janvier 2024 (consulté le 13 décembre 2024)
+« «Dans Star Wars, il y a une dimension religieuse, mais surtout politique» », Libération.fr,‎ 2015 (lire en ligne [archive], consulté le 26 décembre 2017)
+(en) « The real history that inspired Star Wars [archive] »
+Labrousse et Schall 2007, p. 262 - 263
+Documentaire Les personnages de Star Wars, DVD bonus du coffret de la trilogie originale, 2004.
+(fr) « Anecdotes de tournage du film Star Wars : Episode I, La Menace fantôme » [archive], Allociné. Consulté le 15 décembre 2011
+(en) « Interviews - Face To Face With The Masters - Joe Levy and Joe Nussbaum » [archive], Theforce.net. Consulté le 15 décembre 2011
+(fr) Paul Simpson, « L'effet Star Wars, 1re partie, l'imitation est la plus sincère des flatteries », Lucasfilm Magazine, no 66, juillet-août 2007, p. 50 – 53.
+(fr) « Références à Star Wars » [archive], The Simpsons Park. Consulté le 10 janvier 2011.
+(fr) Paul Simpson, « L'effet Star Wars, 2e partie, la force invisible », Lucasfilm Magazine, no 67, septembre-octobre 2007, p. 50 – 53.
+(en) « The Strategic Defense Initiative (SDI) : Star Wars » [archive], The Cold War Museum. Consulté le 31 décembre 2010.
+Jonathan Wilkins, « Au cœur de Celebration IV », Lucasfilm Magazine, septembre-octobre 2007, no 67, p. 34 – 40.
+(en) Site officiel de Star Wars Celebration [archive]
+André Kobtzeff, Au cœur de Star Wars Reunion II, Lucasfilm Magazine, janvier-février 2008, no 69, p. 24 – 35.
+(en) Site officiel de FACTS [archive]
+(fr) Site officiel de Générations Star Wars et Science Fiction [archive]
+(de) Site officiel de la JediCon [archive]
+(en) 501st Legion [archive]. Consulté le 31 décembre 2010.
+(en) « Jar Jar Binks Must Die! » [archive], Scifi Movie Page. Consulté le 31 décembre 2010.
+Daniel Wallace, Où est-ce que tu as déniché ce vieux fossile ?, Lucasfilm Magazine, septembre-octobre 2006, no 61, p. 32 – 37.
+(en) « UK Jedi get green light » [archive], The Register. Consulté le 31 décembre 2010.
+(en) « Don’t mock my lentils: vegans to get discrimination rights » [archive], The Sunday Times. Consulté le 31 décembre 2010.
+« Les femmes dans Star Wars, à la recherche de la Force », madmoiZelle.com,‎ 4 mai 2015 (lire en ligne [archive], consulté le 19 décembre 2016)
+« Comment les héroïnes de Star Wars ont évolué avec l'avancée de la société », RTL.fr,‎ 17 décembre 2016 (lire en ligne [archive], consulté le 19 décembre 2016)
+Loïse Delacotte, « Pourquoi les femmes sont les vraies héroïnes de Star Wars ? [archive] », sur cosmopolitan.fr (consulté le 17 janvier 2018).
+« Star Wars donne-t-il sa chance aux femmes? », LExpress.fr,‎ 19 décembre 2016 (lire en ligne [archive], consulté le 19 décembre 2016)
+« Star Wars 7, Rogue One... Comment la licence mise sur le Girl Power pour féminiser son public [archive] », sur Le Huffington Post (consulté le 19 décembre 2016)
+« Salaires : Hollywood préfère les hommes », TV5MONDE,‎ 15 octobre 2015 (lire en ligne [archive], consulté le 19 décembre 2016)
+AlloCine, « Star Wars : Felicity Jones, actrice la mieux payée sur Rogue One », AlloCiné,‎ 16 décembre 2016 (lire en ligne [archive], consulté le 19 décembre 2016)
+Eve Taraborrelli, « Star Wars: l'héroïne du film, Rey, a enfin sa propre figurine [archive] », sur L'Express.fr, 15 janvier 2016 (consulté le 28 décembre 2016).
+Camille Gévaudan, « «Star Wars» : les stéréotypes de genres contre-attaquent [archive] », sur Libération.fr, 24 janvier 2016 (consulté le 28 décembre 2016).
+Laëtitia Forhan, « Star Wars : Le Retour du Jedi sur TF1 : tout ce qu'il faut savoir sur le célèbre bikini de la Princesse Leia [archive] », sur allocine.fr, 16 janvier 2018 (consulté le 17 janvier 2018).
+« Avec la série Star Wars Forces of Destiny, Lucasfilm veut mettre ses héroïnes à l’honneur », Journal du Geek,‎ 13 avril 2017 (lire en ligne [archive])
+« Star Wars Forces of Destiny : nos infos exclusives sur la nouvelle série » (photogr. Lucasfilm), CNEWS Matin,‎ 13 avril 2017 (lire en ligne [archive])
+Annexes
+Sur les autres projets Wikimedia :
+
+Star Wars, sur Wikimedia Commons
+Star Wars, sur Wikiquote
+
+Une catégorie est consacrée à ce sujet : Star Wars.
+Bibliographie
+Document utilisé pour la rédaction de l’article : document utilisé comme source pour la rédaction de cet article.
+
+Alain Boillat (dir.), revue Décadrages, vol. 8-9 : Dossier : le monde de Star Wars, Lausanne, 2006, 168 p. (ISBN 978-2-9700582-4-3, lire en ligne [archive])
+Jean-Louis Fetjaine, La Fantasy pour les Nuls : Grand format, Paris, First, 2018, 384 p. (ISBN 9782412037522)
+Mary Henderson, Star Wars, la magie du mythe : À la source des mondes fabuleux de George Lucas, Presses de la Cité, 1998, 214 p. (ISBN 978-2258048690)
+Pablo Hidalgo, Daniel Wallace et Ryder Windham, Générations Star Wars : La Chronique illustrée de 30 ans d’aventures - Nouvelle édition, Hors Collection, 2012, 328 p. (ISBN 2-258-09895-5)
+Laurent Jullier, Star Wars, anatomie d’une saga, Armand Colin, 2005, 240 p. (ISBN 2-200-26911-0, présentation en ligne [archive]) Document utilisé pour la rédaction de l’article
+Fabrice Labrousse et Francis Schall, Il était une fois La Guerre des étoiles : La Galaxie de George Lucas, Dark Star, 2007, 443 p. (ISBN 9782914680097) Document utilisé pour la rédaction de l’article
+Philippe Lombard, Le Petit Livre de Star Wars, Éditions First, 2017, 160 p. (ISBN 2412016682)
+Roland Lehoucq, Faire de la science avec Star Wars, Édition Le Pommier, 2005, 127 p. (ISBN 978-27465025-9-8)
+(en) Jonathan W. Rinzler, The Making of Star Wars: The Definitive Story Behind the Original Film, Del Rey Books, 2007, 313 p. (ISBN 0345494768) Document utilisé pour la rédaction de l’article
+Gilles Vervisch, Star Wars, la philo contre attaque : La saga décryptée, éditions Le Passeur, 2015, 256 p. (ISBN 2-3689-0380-1)
+Ryder Windham, Star Wars, l’encyclopédie absolue, Nathan, 2006, 144 p. (ISBN 2-09-251214-5) Document utilisé pour la rédaction de l’article
+Ryder Windham, Star Wars, l’encyclopédie absolue - Nouvelle édition, Nathan, 2012, 199 p. (ISBN 2-0925-4065-3) Document utilisé pour la rédaction de l’article
+(en) Sean Guynes et Dan Hassler-Forest, Star Wars and the History of Transmedia Storytelling, Amsterdam, Amsterdam University Press, 18 octobre 2017 (ISBN 978-94-6298-621-3)
+Thomas Snégaroff (ill. Christophe Abramowitz), Star Wars, le côté obscur de l'Amérique, Malakoff, Armand Colin, 2018, 224 p. (ISBN 978-2-200-62035-6, EAN 9782200620356, présentation en ligne [archive])
+Radiographie
+Adèle Van Reeth, « Philosopher avec Star Wars [archive] », sur France Culture, décembre 2015.
+Articles connexes
+Force (Star Wars)
+Technologie de Star Wars
+Star Wars (série de films)
+Jedi
+Sith
+Édition déspécialisée d'Harmy
+Les Guerres de Lucas
+Liens externes
+(en) Site officiel Star Wars [archive]
+Star Wars Universe, actualités, dossiers, encyclopédie, collection et communauté en ligne sur l'univers Star Wars [archive]
+Star Wars HoloNet, encyclopédie en ligne sur l'univers Star Wars [archive]
+Notices d'autorité : BnF (données)IdRefLCCNJaponWorldCat
+Notices dans des dictionnaires ou encyclopédies généralistes : Britannica [archive]Brockhaus [archive]Den Store Danske Encyklopædi [archive]Nationalencyklopedin [archive]Universalis [archive]
+Ressources relatives à l'audiovisuel : France 24Rotten Tomatoes
+Ressource relative à la littérature : The Encyclopedia of Science Fiction
+ [masquer]
+v · m
+Article de qualité Star Wars
+Créateur : Bon article George Lucas
+Cinéma	
+Prélogie	
+Bon article Épisode I : La Menace fantôme (1999)Bon article Épisode II : L’Attaque des clones (2002)Bon article Épisode III : La Revanche des Sith (2005)
+Trilogie originale	
+Bon article Épisode IV : Un nouvel espoir (1977)Bon article Épisode V : L’Empire contre-attaque (1980)Bon article Épisode VI : Le Retour du Jedi (1983)
+Troisième trilogie	
+Épisode VII : Le Réveil de la Force (2015)Épisode VIII : Les Derniers Jedi (2017)Épisode IX : L'Ascension de Skywalker (2019)
+Films dérivés	
+The Clone Wars (2008)Rogue One (2016)Solo (2018)The Mandalorian and Grogu (2026)
+Séries télévisées	
+Bon article The Clone Wars (2008-2020)Rebels (2014-2018)Resistance (2018-2020)The Mandalorian (2019-)The Bad Batch (2021-2024)Le Livre de Boba Fett (2021-2022)Obi-Wan Kenobi (2022)Andor (2022-)Tales of the Jedi (2022-)Les Aventures des petits Jedi (2023-)Ahsoka (2023-)Tales of the Empire (2024-)The Acolyte (2024)Skeleton Crew (2024)
+Autres médias	
+Bon article AttractionsBande dessinéeJeux vidéoLivresMusique
+Univers étendu	
+ArmesArticle de qualité AstresDroïdesBon article EspècesHistoire fictiveBon article PersonnagesOrganisationsTechnologiesVaisseauxVéhicules
+icône décorative Portail de Star Wars icône décorative Portail du cinéma américain icône décorative Portail Disney icône décorative Portail de la culture des Amériques
+Cet article est reconnu comme « article de qualité » depuis sa version du 11 février 2012 (comparer avec la version actuelle).
+Pour toute information complémentaire, consulter sa page de discussion et le vote l'ayant promu.
+Catégories : Star WarsLucasfilm[+]
+La dernière modification de cette page a été faite le 26 février 2025 à 08:48.
+Droit d'auteur : les textes sont disponibles sous licence Creative Commons attribution, partage dans les mêmes conditions ; d’autres conditions peuvent s’appliquer. Voyez les conditions d’utilisation pour plus de détails, ainsi que les crédits graphiques. En cas de réutilisation des textes de cette page, voyez comment citer les auteurs et mentionner la licence.
+Wikipedia® est une marque déposée de la Wikimedia Foundation, Inc., organisation de bienfaisance régie par le paragraphe 501(c)(3) du code fiscal des États-Unis.
+Politique de confidentialitéÀ propos de WikipédiaAvertissementsContactCode de conduiteDéveloppeursStatistiquesDéclaration sur les témoins (cookies)Version mobile
+Wikimedia Foundation
+Powered by MediaWiki
+
+Star Wars
+
+147 langues
+Ajouter un sujet

@@ -48,10 +48,21 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn tests(){
         hello_world_test().await.unwrap();
+        sleep(Duration::from_secs(1)).await;
         echo_bidirectionnal_test().await.unwrap();
-        //multiples_hello_world_test().await.unwrap();
-        file_upload_test().await.unwrap();
-        file_download_test().await.unwrap();
+        sleep(Duration::from_secs(1)).await;
+        multiples_hello_world_test().await.unwrap();
+        sleep(Duration::from_secs(1)).await;
+        file_upload_test("./swift_file_examples/small.txt".to_string()).await.unwrap();
+        sleep(Duration::from_secs(1)).await;
+        file_download_test("./swift_file_examples/small.txt".to_string()).await.unwrap();
+        sleep(Duration::from_secs(1)).await;
+        /* Currently not okay with big files
+        file_upload_test("./swift_file_examples/big.txt".to_string()).await.unwrap();
+        sleep(Duration::from_secs(1)).await;
+        file_download_test("./swift_file_examples/big.txt".to_string()).await.unwrap();
+        sleep(Duration::from_secs(1)).await; 
+        */
     }
 
 
@@ -311,7 +322,7 @@ mod tests {
     /*
         Simple test to check if the server and the client can send a file to each other.
      */
-    async fn file_upload_test() -> Result<(), Box<dyn std::error::Error>> {
+    async fn file_upload_test(name: String) -> Result<(), Box<dyn std::error::Error>> {
         let (sender, receiver) = tokio::sync::oneshot::channel(); //Channel to let the thread know that the server must be shut down.
         task::spawn(async {
             let mut child = Command::new("cargo")
@@ -352,13 +363,13 @@ mod tests {
         let mut client = FileServiceClient::new(channel);
 
         // Upload a file
-        let file_path = "./swift_file_examples/small.txt";
+        let file_path = name;
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
 
         let request = tonic::Request::new(FileData {
-            filename: "uploaded_example.txt".into(),
+            filename: "uploaded_example".into(),
             data: buffer.clone(),
         });
 
@@ -366,7 +377,7 @@ mod tests {
         println!("Upload Response: {}", response.message);
         assert_eq!(response.message, "File uploaded successfully");
 
-        let file_uploaded_path = "./uploaded_example.txt";
+        let file_uploaded_path = "./uploaded_example";
         let mut file_uploaded = File::open(file_uploaded_path).await?;
         let mut buffer_uploaded = Vec::new();
         file_uploaded.read_to_end(&mut buffer_uploaded).await?;
@@ -381,7 +392,7 @@ mod tests {
     /*
         Simple test to check if the server and the client can send a file to each other.
      */
-    async fn file_download_test() -> Result<(), Box<dyn std::error::Error>> {
+    async fn file_download_test(name: String,) -> Result<(), Box<dyn std::error::Error>> {
         let (sender, receiver) = tokio::sync::oneshot::channel(); //Channel to let the thread know that the server must be shut down.
         task::spawn(async {
             let mut child = Command::new("cargo")
@@ -423,16 +434,16 @@ mod tests {
         
         // Download a file
         let request = tonic::Request::new(FileRequest {
-            filename: "uploaded_example.txt".into(),
+            filename: "uploaded_example".into(),
         });
 
         let response = client.download_file(request).await?.into_inner();
-        let mut new_file = File::create("downloaded_example.txt").await?;
+        let mut new_file = File::create("downloaded_example").await?;
         new_file.write_all(&response.data).await?;
 
         println!("File downloaded successfully!");
 
-        let file_path = "./swift_file_examples/small.txt";
+        let file_path = name;
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
@@ -440,8 +451,8 @@ mod tests {
         assert_eq!(buffer, response.data);
 
         //remove the downloaded and uploaded file
-        fs::remove_file("./uploaded_example.txt").await?;
-        fs::remove_file("./downloaded_example.txt").await?;
+        fs::remove_file("./uploaded_example").await?;
+        fs::remove_file("./downloaded_example").await?;
 
 
         sender.send(1).unwrap();
