@@ -49,7 +49,9 @@ Options:
     -p --proto PROTOCOL     ProtoBuf to use [default: helloworld].
     --timeout TIMEOUT       Idle timeout of the QUIC connection in milliseconds [default: 5000].
     -e --early              Enable 0-RTT.
-    --poll-timeout TIMOUT   Timeout for polling the event loop in milliseconds [default: 500].
+    --poll-timeout TIMOUT   Timeout for polling the event loop in milliseconds [default: 1].
+    --cert-file PATH        Path to the certificate file [default: ./cert.crt].
+    --key-file PATH         Path to the private key file [default: ./cert.key].
     -t --token              Enable stateless retry token.
 ";
 
@@ -129,6 +131,8 @@ impl Io {
         let early_data = args.get_bool("--early");
         let stateless_retry = args.get_bool("--token");
         let poll_timeout = args.get_str("--poll-timeout").parse::<u64>().unwrap();
+        let cert_file = args.get_str("--cert-file").to_string();
+        let key_file = args.get_str("--key-file").to_string();
        
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
@@ -140,15 +144,16 @@ impl Io {
         let mut config = quiche::Config::new(quiche::PROTOCOL_VERSION).unwrap();
 
         config
-            .load_cert_chain_from_pem_file("src/cert.crt")
+            .load_cert_chain_from_pem_file(&cert_file)
             .unwrap();
         config
-            .load_priv_key_from_pem_file("src/cert.key")
+            .load_priv_key_from_pem_file(&key_file)
             .unwrap();
 
         config
             .set_application_protos(quiche::h3::APPLICATION_PROTOCOL)
             .unwrap();
+
 
         config.set_max_idle_timeout(idel_timeout);
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);

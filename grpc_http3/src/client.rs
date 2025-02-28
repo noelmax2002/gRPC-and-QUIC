@@ -16,9 +16,8 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc;
 use tokio::task;
 use log::{info, error, debug};
-use tokio::time::Duration;
 use tokio::time::sleep;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use docopt::Docopt;
 use tonic::transport::Channel;
 use tokio::fs::{self,File};
@@ -51,10 +50,11 @@ Usage: client [options]
 Options:
     -s --sip ADDRESS                Server IPv4 address and port [default: 127.0.0.1:4433].
     -p --proto PROTOCOL             Choose the protoBuf to use [default: helloworld].
-    -t --timeout TIMEOUT            Idle timeout of the QUIC connection in milliseconds [default: 500000].
+    -t --timeout TIMEOUT            Idle timeout of the QUIC connection in milliseconds [default: 5000].
     -e --early                      Enable sending early data.
     -r --connetion-resumption       Enable connection resumption.
-    --poll-timeout TIMEOUT          Timeout for polling the event loop in milliseconds [default: 500].
+    --poll-timeout TIMEOUT          Timeout for polling the event loop in milliseconds [default: 1].
+    --file FILE                     File to upload [default: ../swift_file_examples/small.txt].
     --nocapture                     Do not capture the output of the test.
 ";
 
@@ -65,6 +65,7 @@ async fn main() -> Result<()> {
     let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
     let mut server_addr = args.get_str("--sip").to_string();
     let proto = args.get_str("--proto").to_string();
+    let file_path = args.get_str("--file").to_string();
 
     //127.0.0.1:4433
     //192.168.1.7:8080"
@@ -95,7 +96,7 @@ async fn main() -> Result<()> {
             Ok::<_, std::io::Error>(TokioIo::new(server))
     }));
 
-    let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let start = Instant::now();
 
     if proto.as_str() == "echo" {
         let mut client = EchoClient::new(channel);
@@ -115,7 +116,6 @@ async fn main() -> Result<()> {
         let mut client = FileServiceClient::new(channel);
 
         // Upload a file
-        let file_path = "./swift_file_examples/big.txt";
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
         });
 
         let response = client.upload_file(request).await?.into_inner();
-        println!("Upload Response: {}", response.message);
+        //println!("Upload Response: {}", response.message);
 
         // Download a file
         let request = tonic::Request::new(FileRequest {
@@ -137,14 +137,14 @@ async fn main() -> Result<()> {
         let mut new_file = File::create("downloaded_example").await?;
         new_file.write_all(&response.data).await?;
 
-        println!("File downloaded successfully!");
+        //println!("File downloaded successfully!");
 
     } else {
         panic!("Invalid protoBuf");
     }
         
-    let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    println!("Time elapsed: {:?}", end - start);
+    let duration = start.elapsed();
+    println!("Time elapsed: {:?}", duration.as_secs_f64());
 
     Ok(())
 }
@@ -223,7 +223,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
         }
             
 
-        println!(
+        debug!(
             "connecting to {:} from {:} with scid {}",
             peer_addr,
             socket.local_addr().unwrap(),
@@ -311,8 +311,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             }
 
             if conn.is_closed() {
-                println!("connection closed, {:?}", conn.stats());
-                println!("gRPC is disconnected: {:?}", from_client.is_closed());
+                //println!("connection closed, {:?}", conn.stats());
+                //println!("gRPC is disconnected: {:?}", from_client.is_closed());
 
                 if !conn.is_established() {
                     error!(
@@ -366,10 +366,10 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     };
     
                     //println!("sending HTTP request {:?}", req);
-                    println!("sending HTTP data of size {:?}", data.len());
+                    //println!("sending HTTP data of size {:?}", data.len());
                     //println!("{:?}", data);
                     let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
-                    println!("stream_id: {:?}", stream_id);
+                    //println!("stream_id: {:?}", stream_id);
                     h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
                 }
 
@@ -471,8 +471,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             }
 
             if conn.is_closed() {
-                println!("connection closed, {:?}", conn.stats());
-                println!("gRPC is disconnected: {:?}", from_client.is_closed());
+                //println!("connection closed, {:?}", conn.stats());
+                //println!("gRPC is disconnected: {:?}", from_client.is_closed());
 
                 if !conn.is_established() {
                    error!(

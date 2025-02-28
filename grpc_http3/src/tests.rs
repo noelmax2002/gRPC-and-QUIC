@@ -80,7 +80,7 @@ mod tests {
                     .expect("failed to execute the server")
             } else {
                 Command::new("cargo")
-                    .args(["run", "--bin", "server"])
+                    .args(["run", "--bin", "server", "--", "--cert-file", "./src/cert.crt", "--key-file", "./src/cert.key"])
                     .spawn()
                     .expect("failed to execute the server")
             };
@@ -143,11 +143,18 @@ mod tests {
 
         let (sender, receiver) = tokio::sync::oneshot::channel(); //Channel to let the thread know that the server must be shut down.
         task::spawn(async {
-            let mut child = Command::new("cargo")
+            let mut child = if cfg!(target_os = "windows") {
+                Command::new("cargo")
                     .args(["run", "--bin", "server", "--", "-s", "127.0.0.1:4400", "--timeout", "50000"])
                     .spawn()
-                    .expect("failed to execute the server");
-           
+                    .expect("failed to execute the server")
+            } else {
+                Command::new("cargo")
+                    .args(["run", "--bin", "server", "--", "-s", "127.0.0.1:4400", "--timeout", "50000", "--cert-file", "./src/cert.crt", "--key-file", "./src/cert.key"])
+                    .spawn()
+                    .expect("failed to execute the server")
+            };
+        
             receiver.await.unwrap();
             child.kill().expect("failed to kill server");
         });
@@ -244,11 +251,18 @@ mod tests {
 
         let (sender, receiver) = tokio::sync::oneshot::channel(); //Channel to let the thread know that the server must be shut down.
         task::spawn(async {
-            let mut child = Command::new("cargo")
+            let mut child = if cfg!(target_os = "windows") {
+                Command::new("cargo")
                     .args(["run", "--bin", "server", "--", "-s", "127.0.0.1:3344","-p", "echo"])
                     .spawn()
-                    .expect("failed to execute the server");
-           
+                    .expect("failed to execute the server")
+            } else {
+                Command::new("cargo")
+                    .args(["run", "--bin", "server", "--", "-s", "127.0.0.1:3344","-p", "echo","--cert-file", "./src/cert.crt", "--key-file", "./src/cert.key"])
+                    .spawn()
+                    .expect("failed to execute the server")
+            };
+    
             receiver.await.unwrap();
             child.kill().expect("failed to kill server");
         });
@@ -325,11 +339,18 @@ mod tests {
     async fn file_upload_test(name: String) -> Result<(), Box<dyn std::error::Error>> {
         let (sender, receiver) = tokio::sync::oneshot::channel(); //Channel to let the thread know that the server must be shut down.
         task::spawn(async {
-            let mut child = Command::new("cargo")
+            let mut child = if cfg!(target_os = "windows") {
+                Command::new("cargo")
                     .args(["run", "--bin", "server", "--", "-p", "filetransfer"])
                     .spawn()
-                    .expect("failed to execute the server");
-           
+                    .expect("failed to execute the server")
+            } else {
+                Command::new("cargo")
+                    .args(["run", "--bin", "server", "--", "-p", "filetransfer", "--cert-file", "./src/cert.crt", "--key-file", "./src/cert.key"])
+                    .spawn()
+                    .expect("failed to execute the server")
+            };
+    
             receiver.await.unwrap();
             child.kill().expect("failed to kill server");
         });
@@ -395,10 +416,17 @@ mod tests {
     async fn file_download_test(name: String,) -> Result<(), Box<dyn std::error::Error>> {
         let (sender, receiver) = tokio::sync::oneshot::channel(); //Channel to let the thread know that the server must be shut down.
         task::spawn(async {
-            let mut child = Command::new("cargo")
+            let mut child = if cfg!(target_os = "windows") {
+                Command::new("cargo")
                     .args(["run", "--bin", "server", "--", "-p", "filetransfer"])
                     .spawn()
-                    .expect("failed to execute the server");
+                    .expect("failed to execute the server")
+            } else {
+                Command::new("cargo")
+                    .args(["run", "--bin", "server", "--", "-p", "filetransfer","--cert-file", "./src/cert.crt", "--key-file", "./src/cert.key"])
+                    .spawn()
+                    .expect("failed to execute the server")
+            };
            
             receiver.await.unwrap();
             child.kill().expect("failed to kill server");

@@ -1,3 +1,7 @@
 grpc_http3/target/
 quiche/
 octets/
+grpc_http3/benchmark/
+!grpc_http3/benchmark/script.npf
+grpc_http3/src/downloaded_example
+grpc_http3/src/uploaded_example
