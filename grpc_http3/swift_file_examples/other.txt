@@ -1,0 +1,313 @@
+
+
+WikipediaThe Free Encyclopedia
+Search Wikipedia
+Search
+Donate
+Create account
+Log in
+
+Photograph your local culture, help Wikipedia and win!
+Hide
+Contents hide
+(Top)
+Background
+Characteristics
+
+Google QUIC (gQUIC)
+Applications
+Adoption
+
+Browser support
+Client support
+Server support
+Source code
+See also
+References
+Bibliography
+External links
+QUIC
+
+Article
+Talk
+Read
+Edit
+View history
+
+Tools
+Appearance hide
+Text
+
+Small
+
+Standard
+
+Large
+Width
+
+Standard
+
+Wide
+Color (beta)
+
+Automatic
+
+Light
+
+Dark
+From Wikipedia, the free encyclopedia
+QUIC
+Communication protocol
+Purpose	General purpose
+Developer(s)	IETF, Google
+Introduction	October 12, 2012; 12 years ago
+Based on	IP, normally layered with UDP
+OSI layer	Transport layer
+RFC(s)	RFC 9000, RFC 8999, RFC 9001, RFC 9002
+Website	quicwg.org
+Internet protocol suite
+Application layer
+BGPDHCP (v6)DNSFTPHTTP (HTTP/3)HTTPSIMAPIRCLDAPMGCPMQTTNNTPNTPOSPFPOPPTPONC/RPCRTPRTSPRIPSIPSMTPSNMPSSHTelnetTLS/SSLXMPPmore...
+Transport layer
+TCPUDPDCCPSCTPRSVPQUICmore...
+Internet layer
+IP v4v6ICMP (v6)NDPECNIGMPIPsecmore...
+Link layer
+ARPTunnelsPPPMACmore...
+vte
+QUIC (/kwɪk/) is a general-purpose transport layer network protocol initially designed by Jim Roskind at Google.[1][2][3] It was first implemented and deployed in 2012[4] and was publicly announced in 2013 as experimentation broadened. It was also described at an IETF meeting.[5][6][7][8] The Chrome web browser,[9] Microsoft Edge,[10][11] Firefox,[12] and Safari all support it.[13] In Chrome, QUIC is used by more than half of all connections to Google's servers.[9]
+
+QUIC improves performance of connection-oriented web applications that before QUIC used Transmission Control Protocol (TCP).[2][9] It does this by establishing a number of multiplexed connections between two endpoints using User Datagram Protocol (UDP), and is designed to obsolete TCP at the transport layer for many applications, thus earning the protocol the occasional nickname "TCP/2".[14][additional citation(s) needed] Although its name was initially proposed as an acronym for Quick UDP Internet Connections, in IETF's use of the word, QUIC is not an acronym; it is simply the name of the protocol.[3][8][1]
+
+QUIC works hand-in-hand with HTTP/3's multiplexed connections, allowing multiple streams of data to reach all the endpoints independently, and hence independent of packet losses involving other streams. In contrast, HTTP/2 carried over TCP can suffer head-of-line-blocking delays if multiple streams are multiplexed on a TCP connection and any of the TCP packets on that connection are delayed or lost.
+
+QUIC's secondary goals include reduced connection and transport latency, and bandwidth estimation in each direction to avoid congestion. It also moves congestion control algorithms into the user space at both endpoints, rather than the kernel space, which it is claimed[15] will allow these algorithms to improve more rapidly. Additionally, the protocol can be extended with forward error correction (FEC) to further improve performance when errors are expected, and this is seen[by whom?] as the next step in the protocol's evolution. It is designed with the intention of avoiding protocol ossification.
+
+In June 2015, an Internet Draft of a specification for QUIC was submitted to the IETF for standardization.[16][17] A QUIC working group was established in 2016.[18] In October 2018, the IETF's HTTP and QUIC Working Groups jointly decided to call the HTTP mapping over QUIC "HTTP/3" in advance of making it a worldwide standard.[19] In May 2021, the IETF standardized QUIC in RFC 9000, supported by RFC 8999, RFC 9001 and RFC 9002.[20] DNS-over-QUIC is another application.
+
+Background
+Main article: Transmission Control Protocol
+Transmission Control Protocol, or TCP, aims to provide an interface for sending streams of data between two endpoints. Data is handed to the TCP system, which ensures the data makes it to the other end in exactly the same form, or the connection will indicate that an error condition exists.[21]
+
+To do this, TCP breaks up the data into network packets and adds small amounts of data to each packet. This additional data includes a sequence number that is used to detect packets that are lost or arrive out of order, and a checksum that allows the errors within packet data to be detected. When either problem occurs, TCP uses automatic repeat request (ARQ) to ask the sender to re-send the lost or damaged packet.[21]
+
+In most implementations, TCP will see any error on a connection as a blocking operation, stopping further transfers until the error is resolved or the connection is considered failed. If a single connection is being used to send multiple streams of data, as is the case in the HTTP/2 protocol, all of these streams are blocked although only one of them might have a problem. For instance, if a single error occurs while downloading a GIF image used for a favicon, the entire rest of the page will wait while that problem is resolved.[21] This phenomenon is known as head-of-line blocking.
+
+As the TCP system is designed to look like a "data pipe", or stream, it deliberately has little information regarding the data it transmits. If that data has additional requirements, like encryption using TLS, this must be set up by systems running on top of TCP, using TCP to communicate with similar software on the other end of the connection. Each of these sorts of setup tasks requires its own handshake process. This often requires several round-trips of requests and responses until the connection is established. Due to the inherent latency of long-distance communications, this can add significant delay to the overall transmission.[21]
+
+TCP has suffered from protocol ossification,[22] due to its wire image being in cleartext and hence visible to and malleable by middleboxes.[23] One measurement found that a third of paths across the Internet encounter at least one intermediary that modifies TCP metadata, and 6.5% of paths encounter harmful ossifying effects from intermediaries.[24] Extensions to TCP have been affected: the design of Multipath TCP (MPTCP) was constrained by middlebox behaviour,[25][26] and the deployment of TCP Fast Open has been likewise hindered.[27][22]
+
+Characteristics
+
+Handshake of QUIC compared to TCP with TLS 1.2
+In the context of supporting encrypted HTTP traffic, QUIC serves a similar role as TCP, but with reduced latency during connection setup and more efficient loss recovery when multiple HTTP streams are multiplexed over a single connection. It does this primarily through two changes that rely on the understanding of the behaviour of HTTP traffic.[21]
+
+The first change is to greatly reduce overhead during connection setup. As most HTTP connections will demand TLS, QUIC makes the exchange of setup keys and listing of supported protocols part of the initial handshake process. When a client opens a connection, the response packet includes the data needed for future packets to use encryption. This eliminates the need to set up an unencrypted pipe and then negotiate the security protocol as separate steps. Other protocols can be serviced in the same way, combining multiple steps into a single request–response pair. This data can then be used both for following requests in the initial setup and future requests that would otherwise be negotiated as separate connections.[21]
+
+The second change is to use UDP rather than TCP as its basis, which does not include loss recovery. Instead, each QUIC stream is separately flow-controlled, and lost data is retransmitted at the level of QUIC, not UDP. This means that if an error occurs in one stream, like the favicon example above, the protocol stack can continue servicing other streams independently. This can be very useful in improving performance on error-prone links, as in most cases considerable additional data may be received before TCP notices a packet is missing or broken, and all of this data is blocked or even flushed while the error is corrected. In QUIC, this data is free to be processed while the single multiplexed stream is repaired.[28]
+
+QUIC includes a number of other changes that improve overall latency and throughput. For instance, the packets are encrypted individually, so that they do not result in the encrypted data waiting for partial packets. This is not generally possible under TCP, where the encryption records are in a bytestream and the protocol stack is unaware of higher-layer boundaries within this stream. These can be negotiated by the layers running on top, but QUIC aims to do all of this in a single handshake process.[8]
+
+Another goal of the QUIC system was to improve performance during network-switching events, like what happens when a user of a mobile device moves from a local Wi‑Fi hotspot to a mobile network. When this occurs on TCP, a lengthy process starts where every existing connection times out one-by-one and is then re-established on demand. To solve this problem, QUIC includes a connection identifier to uniquely identify the connection to the server regardless of source. This allows the connection to be re-established simply by sending a packet, which always contains this ID, as the original connection ID will still be valid even if the user's IP address changes.[29]
+
+
+Protocol stack of HTTP/3 compared to HTTP/1.1 and HTTP/2
+QUIC can be implemented in the application space, as opposed to being in the operating system kernel. This generally invokes additional overhead due to context switches as data is moved between applications. However, in the case of QUIC, the protocol stack is intended to be used by a single application, with each application using QUIC having its own connections hosted on UDP. Ultimately the difference could be very small because much of the overall HTTP/2 stack is already in the applications (or their libraries, more commonly). Placing the remaining parts in those libraries, essentially the error correction, has little effect on the HTTP/2 stack's size or overall complexity.[8]
+
+This organization allows future changes to be made more easily as it does not require changes to the kernel for updates. One of QUIC's longer-term goals is to add new systems for forward error correction (FEC) and improved congestion control.[29]
+
+One concern about the move from TCP to UDP is that TCP is widely adopted and many of the "middleboxes" in the Internet infrastructure are tuned for TCP and rate-limit or even block UDP. Google carried out a number of exploratory experiments to characterize this and found that only a small number of connections were blocked in this manner.[3] This led to the use of a system for rapid fallback to TCP; Chromium's network stack starts both a QUIC and a conventional TCP connection at the same time, which allows it to fall back with negligible latency.[30]
+
+QUIC has been specifically designed to be deployable and evolvable and to have anti-ossification properties;[31] it is the first IETF transport protocol to deliberately minimise its wire image for these ends.[32] Beyond encrypted headers, it is 'greased'[33] and it has protocol invariants explicitly specified.[34]
+
+Google QUIC (gQUIC)
+
+This section does not cite any sources. Please help improve this section by adding citations to reliable sources. Unsourced material may be challenged and removed.
+Find sources: "GQUIC" – news · newspapers · books · scholar · JSTOR (July 2023) (Learn how and when to remove this message)
+The protocol that was created by Google and taken to the IETF under the name QUIC (already in 2012 around QUIC version 20) is quite different from the QUIC that has continued to evolve and be refined within the IETF. The original Google QUIC was designed to be a general purpose protocol, though it was initially deployed as a protocol to support HTTP(S) in Chromium. The current evolution of the IETF QUIC protocol is a general purpose transport protocol. Chromium developers continued to track the evolution of IETF QUIC's standardization efforts to adopt and fully comply with the most recent internet standards for QUIC in Chromium.
+
+Applications
+QUIC was developed with HTTP in mind, and HTTP/3 was its first application.[35][36] DNS-over-QUIC is an application of QUIC to name resolution, providing security for data transferred between resolvers similar to DNS-over-TLS.[37] The IETF is developing applications of QUIC for secure network tunnelling[36] and streaming media delivery.[38] XMPP has experimentally been adapted to use QUIC.[39] Another application is SMB over QUIC, which, according to Microsoft, can offer an "SMB VPN" without affecting the user experience.[40] SMB clients use TCP by default and will attempt QUIC if the TCP attempt fails or if intentionally requiring QUIC.
+
+Adoption
+Browser support
+The QUIC code was experimentally developed in Google Chrome starting in 2012,[4] and was announced as part of Chromium version 29 (released on August 20, 2013).[19] It is currently enabled by default in Chromium and Chrome.[41]
+
+Support in Firefox arrived in May 2021.[42][12]
+
+Apple added experimental support in the WebKit engine through the Safari Technology Preview 104 in April 2020.[43] Official support was added in Safari 14, included in macOS Big Sur and iOS 14,[44] but the feature needed to be turned on manually.[45] It was later enabled by default in Safari 16.[13]
+
+Client support
+The cronet library for QUIC and other protocols is available to Android applications as a module loadable via Google Play Services.[46]
+
+cURL 7.66, released 11 September 2019, supports HTTP/3 (and thus QUIC).[47][48]
+
+In October 2020, Facebook announced[49] that it has successfully migrated its apps, including Instagram, and server infrastructure to QUIC, with already 75% of its Internet traffic using QUIC. All mobile apps from Google support QUIC, including YouTube and Gmail.[50][51] Uber's mobile app also uses QUIC.[51]
+
+Server support
+As of 2017, there are several actively maintained implementations. Google servers support QUIC and Google has published a prototype server.[52] Akamai Technologies has been supporting QUIC since July 2016.[53][54] A Go implementation called quic-go[55] is also available, and powers experimental QUIC support in the Caddy server.[56] On July 11, 2017, LiteSpeed Technologies officially began supporting QUIC in their load balancer (WebADC)[57] and LiteSpeed Web Server products.[58] As of October 2019, 88.6% of QUIC websites used LiteSpeed and 10.8% used Nginx.[59] Although at first only Google servers supported HTTP-over-QUIC connections, Facebook also launched the technology in 2018,[19] and Cloudflare has been offering QUIC support on a beta basis since 2018.[60] The HAProxy load balancer added experimental support for QUIC in March 2022[61] and declared it production-ready in March 2023.[62] As of April 2023, 8.9% of all websites use QUIC,[63] up from 5% in March 2021. Microsoft Windows Server 2022 supports both HTTP/3[64] and SMB over QUIC[65][10] protocols via MsQuic. The Application Delivery Controller of Citrix (Citrix ADC, NetScaler) can function as a QUIC proxy since version 13.[66][67]
+
+In addition, there are several stale community projects: libquic[68] was created by extracting the Chromium implementation of QUIC and modifying it to minimize dependency requirements, and goquic[69] provides Go bindings of libquic. Finally, quic-reverse-proxy[70] is a Docker image that acts as a reverse proxy server, translating QUIC requests into plain HTTP that can be understood by the origin server.
+
+.NET 5 introduces experimental support for QUIC using the MsQuic library.[71]
+
+Source code
+QUIC or gQUIC implementations available in source form
+Implementation	License	Language	Description
+Chromium	BSD-3-Clause License	C++	This is the source code of the Chrome web browser and the reference gQUIC implementation. It contains a standalone gQUIC and QUIC client and server programs that can be used for testing. Browsable source code. This version is also the basis of LINE's stellite and Google's cronet.
+MsQuic	MIT License	C	A cross platform QUIC implementation from Microsoft designed to be a general purpose QUIC library. Used in Windows and cross platform by .NET. Rust and C# interop layers available are available, as well as convenience C++ wrapper classes.
+QUIC Library (mvfst)	MIT License	C++	mvfst (Pronounced move fast) is a client and server implementation of IETF QUIC protocol in C++ by Facebook.
+LiteSpeed QUIC Library (lsquic)	MIT License	C	This is the QUIC and HTTP/3 implementation used by LiteSpeed Web Server and OpenLiteSpeed.
+ngtcp2	MIT License	C	This is a QUIC library that's crypto library agnostic and works with OpenSSL or GnuTLS. For HTTP/3, it needs a separate library like nghttp3.
+Quiche	BSD-2-Clause License	Rust	Socket-agnostic and exposes a C API for use in C/C++ applications.
+quicly	MIT License	C	This library is the QUIC implementation for the H2O web server.
+quic-go	MIT License	Go	This library provides QUIC support for Go.
+Quinn	Apache License 2.0 MIT License	Rust	An async-friendly QUIC implementation in Rust
+Neqo	Apache License 2.0 MIT License	Rust	This implementation from Mozilla is planned to be integrated in Necko, a network library used in the Firefox web browser
+aioquic	BSD-3-Clause License	Python	This library features an I/O-free API suitable for embedding in both clients and servers.
+picoquic	MIT License	C	A minimal implementation of QUIC aligned with the IETF specifications
+pquic	MIT License	C	An extensible QUIC implementation that includes an eBPF virtual machine that is able to dynamically load extensions as plugins
+quic	BSD-3-Clause License	Haskell	This package implements QUIC based on Haskell lightweight threads.
+netty-incubator-codec-quic	Apache License 2.0	Java	This package implements QUIC in netty based on the Quiche implementation.
+nodejs-quic	MIT License	NodeJs	This experimental package implements QUIC for Nodejs.
+s2n-quic	Apache License 2.0	Rust	Open-source Rust implementation from Amazon Web Services
+swift-quic	Apache License 2.0	Swift	Swift implementation pitched for incubation at the Swift Server Workgroup.
+TQUIC	Apache License 2.0	Rust	A high-performance, lightweight, and cross-platform QUIC library
+nginx	BSD-2-Clause License	C	Open-source QUIC server implementation
+HAProxy	GNU General Public License version 2	C	Open-source QUIC server implementation
+kwik	GNU Lesser General Public License version 3	Java	Client and server implementations of the QUIC protocol (RFC 9000) in 100% Java. Supports HTTP3 (RFC 9114) with "Flupke" add-on.
+OpenSSL	Apache License	C	OpenSSL has added QUIC support since version 3.2.[72]
+GnuTLS	GNU Lesser General Public License version 2.1	C	GnuTLS has added QUIC support since version 3.7.[73]
+See also
+Constrained Application Protocol (CoAP) – a UDP-based protocol utilizing REST model
+Datagram Congestion Control Protocol (DCCP)
+Datagram Transport Layer Security (DTLS)
+Fast and Secure Protocol
+HTTP/3
+LEDBAT (Low Extra Delay Background Transport)
+Micro Transport Protocol (μTP)
+Multipurpose Transaction Protocol (MTP/IP) – an alternative to QUIC from Data Expedition, Inc.
+Real-Time Media Flow Protocol (RTMFP)
+Reliable User Datagram Protocol (RUDP)
+SPDY
+Stream Control Transmission Protocol (SCTP UDP Encapsulation; RFC 6951)
+Structured Stream Transport
+UDP-based Data Transfer Protocol (UDT) – a UDP-based transport protocol
+References
+ RFC 9000 – QUIC: A UDP-Based Multiplexed and Secure Transport. IETF. doi:10.17487/RFC9000. RFC 9000. Retrieved 2022-02-08.
+ Nathan Willis. "Connecting on the QUIC". Linux Weekly News. Retrieved 2013-07-16.
+ "QUIC: Design Document and Specification Rationale". Jim Roskind, Chromium Contributor.
+ "First Chromium Code Landing: CL 11125002: Add QuicFramer and friends". Retrieved 2012-10-16.
+ "Experimenting with QUIC". Chromium Official Blog. Retrieved 2013-07-16.
+ "QUIC, Google wants to make the web faster". François Beaufort, Chromium Evangelist.
+ "QUIC: next generation multiplexed transport over UDP". YouTube. 11 February 2014. Retrieved 2014-04-04.
+ "QUIC: IETF-88 TSV Area Presentation" (PDF). Jim Roskind, Google. Retrieved 2013-11-07.
+ Lardinois, Frederic (18 April 2015). "Google Wants To Speed Up The Web With Its QUIC Protocol". TechCrunch. Retrieved 2016-10-25.
+ Mackie, Kurt; August 26, 2021. "Microsoft Embracing Native QUIC in Newer Windows OSes and Edge Browser". Redmond Magazine. Retrieved 2022-05-08.
+ Christopher Fernandes (April 3, 2018). "Microsoft to add support for Google's QUIC fast internet protocol in Windows 10 Redstone 5". Retrieved 2020-05-08.
+ Dragana Damjanovic (2021-04-16). "QUIC and HTTP/3 Support now in Firefox Nightly and Beta". Mozilla. Retrieved 2021-10-11.
+ Belson, David; Pardue, Lucas (June 6, 2023). "Examining HTTP/3 usage one year on". Cloudflare. Retrieved October 22, 2023.
+ Tatsuhiro Tsujikawa. "ngtcp2". GitHub. Retrieved 2020-10-17.
+ Langley, Adam; Riddoch, Alistair; Wilk, Alyssa; Vicente, Antonio; Krasic, Charles; Zhang, Dan; Yang, Fan; Kouranov, Fedor; Swett, Ian; Iyengar, Janardhan; Bailey, Jeff; Dorfman, Jeremy; Roskind, Jim; Kulik, Joanna; Westin, Patrik; Tenneti, Raman; Shade, Robbie; Hamilton, Ryan; Vasiliev, Victor; Chang, Wan-Teh; Shi, Zhongyi (2017-08-07). "The QUIC Transport Protocol: Design and Internet-Scale Deployment". SIGCOMM '17: Proceedings of the Conference of the ACM Special Interest Group on Data Communication. ACM. doi:10.1145/3098822.3098842. ISBN 978-1-4503-4653-5. Retrieved 2025-02-16. p. 195: developing and deploying networking protocols in user space brings substantial benefits, and it makes development, testing, and iteration cycles faster and easier.
+ "Google Will Propose QUIC As IETF Standard". InfoQ. Retrieved 2016-10-25.
+ "I-D Action: draft-tsvwg-quic-protocol-00.txt". i-d-announce (Mailing list). 17 Jun 2015.
+ "QUIC - IETF Working Group". datatracker.ietf.org. Retrieved 2016-10-25.
+ Cimpanu, Catalin (12 November 2018). "HTTP-over-QUIC to be renamed HTTP/3". ZDNet.
+ "QUIC is now RFC 9000". www.fastly.com. 2021-05-27. Retrieved 2021-05-28.
+ Bright, Peter (12 November 2018). "The next version of HTTP won't be using TCP". Arstechnica.
+ Thomson & Pauly 2021, A.5. TCP.
+ Fairhurst & Perkins 2021, 4. Encryption and Authentication of Transport Headers.
+ Edeline & Donnet 2019, p. 175–176.
+ Raiciu et al. 2012, p. 1.
+ Hesmans et al. 2013, p. 1.
+ Rybczyńska 2020.
+ Behr, Michael; Swett, Ian. "Introducing QUIC support for HTTPS load balancing". Google Cloud Platform Blog. Retrieved 16 June 2018.
+ Simon, Clayton (May 2021). "QUIC: A UDP-Based Multiplexed and Secure Transport". IETF.org.
+ "Applicability of the QUIC Transport Protocol". IETF Network Working Group. Oct 22, 2018.
+ Corbet 2018.
+ Trammell & Kuehlewind 2019, p. 2.
+ Thomson & Pauly 2021, 3.3. Falsifying Active Use.
+ Thomson 2021, 2. Fixed Properties of All QUIC Versions.
+ Bishop, Mike (21 June 2021). "HTTP/3 and QUIC: Past, Present, and Future". Akamai.
+ Duke, Martin; Sarker, Zaheduzzaman; Westerlund, Magnus (3 June 2021). "A new era in Internet transport". IETF.
+ Huitema, Christian; Dickinson, Sara; Mankin, Allison (May 2022). DNS over Dedicated QUIC Connections. doi:10.17487/RFC9250. RFC 9250.
+ Bralley, Brett (25 January 2024). "What's the deal with Media Over QUIC?". IETF.
+ Burtrum, Travis (13 July 2022). "XEP-0467: XMPP over QUIC".
+ Pyle, Ned (2023-06-27). "SMB over QUIC". learn.microsoft.com. Retrieved 2023-06-29.
+ Liebetrau, Etienne (2018-06-22). "How Google's QUIC Protocol Impacts Network Security and Reporting". Fastvue – Simple Internet Usage Reporting. Retrieved 2022-04-02.
+ Cimpanu, Catalin (Sep 26, 2019). "Cloudflare, Google Chrome, and Firefox add HTTP/3 support". ZDNet. Retrieved Sep 27, 2019.
+ "Release Notes for Safari Technology Preview 104". webkit.org. 8 April 2020. Retrieved 7 August 2020.
+ "Safari 14 Release Notes". developer.apple.com. Retrieved 4 December 2020.
+ "How to enable HTTP3 in Chrome / Firefox / Safari". bram.us. April 8, 2020.
+ "Perform network operations using Cronet". Android Developers. Retrieved 2019-07-20.
+ "curl – Changes". curl.haxx.se. Retrieved 2019-09-30.
+ "curl 7.66.0 – the parallel HTTP/3 future is here | daniel.haxx.se". 11 September 2019. Retrieved 2019-09-30.
+ "How Facebook is bringing QUIC to billions". Facebook Engineering. 2020-10-21. Retrieved 2020-10-23.
+ "How Google's QUIC Protocol Impacts Network Security and Reporting". Fastvue. 2020-10-21. Retrieved 26 June 2021.
+ Green, Emily (30 September 2020). "This is what you need to know about the new QUIC protocol". NordVPN. Retrieved 26 June 2021.
+ "QUIC server". 2012. Retrieved 2022-08-17.
+ QUIC support by Akamai, Retrieved 20 May 2020.
+ Rüth, Jan; Poese, Ingmar; Dietzel, Christoph; Hohlfeld, Oliver (2018). "A First Look at QUIC in the Wild". Passive and Active Measurement. Lecture Notes in Computer Science. Vol. 10771. pp. 255–268. arXiv:1801.05168. doi:10.1007/978-3-319-76481-8_19. ISBN 978-3-319-76480-1. S2CID 3631501.
+ "lucas-clemente/quic-go". Aug 7, 2020. Retrieved Aug 7, 2020 – via GitHub.
+ QUIC support in Caddy, Retrieved 13 July 2016.
+ "LiteSpeed Web ADC – Load Balancer – LiteSpeed Technologies". www.litespeedtech.com. Retrieved Aug 7, 2020.
+ LiteSpeed Technologies QUIC Blog Post, Retrieved July 11, 2017.
+ "Distribution of Web Servers among websites that use QUIC". w3techs.com. Retrieved Aug 7, 2020.
+ "Get a head start with QUIC". 2018-09-25. Retrieved 2019-07-16.
+ "Announcing HAProxy 2.6". HAProxy Technologies. 31 May 2022. Retrieved 2023-09-16.
+ "[ANNOUNCE] haproxy-2.8.0". www.mail-archive.com. Retrieved 2023-09-16.
+ "Usage Statistics of QUIC for Websites, April 2023". w3techs.com. Retrieved 2023-04-03.
+ "Enabling HTTP/3 support on Windows Server 2022". 24 August 2021.
+ "SMB over QUIC". 27 June 2023.
+ "Policy configuration for HTTP/3 traffic | Citrix ADC 13.0".
+ "Need for speed? – Just an other Citrix ADC Blog".
+ "devsisters/libquic". Aug 5, 2020. Retrieved Aug 7, 2020 – via GitHub.
+ "devsisters/goquic". Aug 5, 2020. Retrieved Aug 7, 2020 – via GitHub.
+ "Docker Hub". hub.docker.com. Retrieved Aug 7, 2020.
+ ".NET 5 Networking Improvements". .NET Blog. 2021-01-11. Retrieved 2021-01-26.
+ https://docs.openssl.org/master/man7/openssl-quic/
+ https://blogs.gnome.org/dueno/whats-new-in-gnutls-3-7-0/
+Bibliography
+Trammell, Brian; Kuehlewind, Mirja (April 2019). The Wire Image of a Network Protocol. doi:10.17487/RFC8546. RFC 8546.
+Thomson, Martin (May 2021). Version-Independent Properties of QUIC. doi:10.17487/RFC8999. RFC 8999.
+Fairhurst, Gorry; Perkins, Colin (July 2021). Considerations around Transport Header Confidentiality, Network Operations, and the Evolution of Internet Transport Protocols. doi:10.17487/RFC9065. RFC 9065.
+Thomson, Martin; Pauly, Tommy (December 2021). Long-Term Viability of Protocol Extension Mechanisms. doi:10.17487/RFC9170. RFC 9170.
+Raiciu; Paasch; Barre; Ford; Honda; Duchene; Bonaventure; Handley (2012). "How Hard Can It Be? Designing and Implementing a Deployable Multipath TCP". Usenix NSDI: 399–412.
+Hesmans, Benjamin; Duchene, Fabien; Paasch, Christoph; Detal, Gregory; Bonaventure, Olivier (2013). Are TCP extensions middlebox-proof?. HotMiddlebox '13. doi:10.1145/2535828.2535830.
+Corbet, Jonathan (29 January 2018). "QUIC as a solution to protocol ossification". LWN.net.
+Edeline, Korian; Donnet, Benoit (2019). A Bottom-Up Investigation of the Transport-Layer Ossification. 2019 Network Traffic Measurement and Analysis Conference (TMA). doi:10.23919/TMA.2019.8784690.
+Rybczyńska, Marta (13 March 2020). "A QUIC look at HTTP/3". LWN.net.
+External links
+Official website Edit this at Wikidata
+IETF QUIC Working Group on GitHub
+RFC 8999 – Version-Independent Properties of QUIC
+RFC 9000 – QUIC: A UDP-Based Multiplexed and Secure Transport
+RFC 9001 – Using TLS to Secure QUIC
+RFC 9002 – QUIC Loss Detection and Congestion Control
+Chromium: QUIC, a multiplexed stream transport over UDP
+QUIC: Design Document and Specification Rationale, Jim Roskind's original document (2012/2013)
+Daniel Stenberg: HTTP/3 explained
+Linux Weekly News: Connecting on the QUIC (2013)
+QUIC:, IETF-88 TSV Area Presentation (2013-11-07)
+Chromium Blog: Experimenting with QUIC (2013)
+QUIC: next generation multiplexed transport over UDP (Google Developers, 2014)
+HTTP over UDP: an Experimental Investigation of QUIC
+Multipath QUIC (extension to QUIC)
+Innovating Transport with QUIC: Design Approaches and Research Challenges (2017)
+EPIQ 2018 Keynote – Facebook's IETF QUIC deployment, Subodh Iyengar on YouTube
+EPIQ 2021 Keynote – QUIC at Microsoft, Nick Bankson on YouTube
+QUIC at Google (2020) – David Schinazi on YouTube
+QUIC at Apple (2021) – Tommy Pauly on YouTube
+qvis: QUIC and HTTP/3 visualization suite.
+The Illustrated QUIC Connection
+Categories: Internet properties established in 2012Transport layer protocolsInternet protocolsComputer networking
+This page was last edited on 16 February 2025, at 09:26 (UTC).
+Text is available under the Creative Commons Attribution-ShareAlike 4.0 License; additional terms may apply. By using this site, you agree to the Terms of Use and Privacy Policy. Wikipedia® is a registered trademark of the Wikimedia Foundation, Inc., a non-profit organization.
+Privacy policyAbout WikipediaDisclaimersContact WikipediaCode of ConductDevelopersStatisticsCookie statementMobile view
+Wikimedia Foundation
+Powered by MediaWiki
+
+QUIC
+
+16 languages
+Add topic
