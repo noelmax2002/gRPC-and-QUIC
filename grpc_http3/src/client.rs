@@ -21,7 +21,8 @@ use std::time::{Duration, Instant};
 use docopt::Docopt;
 use tonic::transport::Channel;
 use tokio::fs::{self,File};
-
+use std::collections::HashMap;
+use tokio::task::JoinHandle;
 
 use quiche::h3::NameValue;
 
@@ -58,6 +59,12 @@ Options:
     --nocapture                     Do not capture the output of the test.
 ";
 
+struct PartialRequest{
+    body: Vec<u8>,
+
+    written: usize,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
 
@@ -65,14 +72,14 @@ async fn main() -> Result<()> {
     let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
     let mut server_addr = args.get_str("--sip").to_string();
     let proto = args.get_str("--proto").to_string();
-    let file_path = args.get_str("--file").to_string();
+    let mut file_path = args.get_str("--file").to_string();
 
     //127.0.0.1:4433
     //192.168.1.7:8080"
 
     let channel = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
         .connect_with_connector_lazy(service_fn(|uri: Uri| async {
-            let (client, server) = tokio::io::duplex(12000);
+            let (client, server) = tokio::io::duplex(1_000_000);
             task::spawn(async move {
                 let (to_client, from_io) = mpsc::channel(1000);
                 let (to_io, from_client) = mpsc::channel(1000);
@@ -88,8 +95,6 @@ async fn main() -> Result<()> {
                     new_client.run().await.unwrap();
                 });
 
-
-
                 run_client(uri, to_client, from_client).await.unwrap();
             });
 
@@ -100,14 +105,67 @@ async fn main() -> Result<()> {
 
     if proto.as_str() == "echo" {
         let mut client = EchoClient::new(channel);
-        bidirectional_streaming_echo(&mut client, 50).await;
+        bidirectional_streaming_echo(&mut client, 100).await;
+        /*
+        let mut client = EchoClient::new(channel);
+        let mut client2 = client.clone();
+
+        let join_handle: task::JoinHandle<_> = task::spawn(async move {
+            bidirectional_streaming_echo(&mut client, 100).await;
+        });
+
+        let join_handle2: task::JoinHandle<_> = task::spawn(async move{
+            bidirectional_streaming_echo(&mut client2, 100).await;
+        });
+
+        join_handle.await?;
+        join_handle2.await?; 
+        */
+        
+
+
     } else if proto.as_str() == "helloworld" {
         let mut client = GreeterClient::new(channel);
 
         let request = tonic::Request::new(HelloRequest {
-            name: "Maxime".into(),
+            name: "aaaaaa".into(),
         });
         
+        
+        let response = client.say_hello(request).await.unwrap();
+        println!("response: {:?}", response.get_ref().message);
+
+        let request = tonic::Request::new(HelloRequest {
+            name: "Guillaume".into(),
+        });
+        
+        let response = client.say_hello(request).await.unwrap();
+        println!("response: {:?}", response.get_ref().message);
+
+        let request = tonic::Request::new(HelloRequest {
+            name: "Maelle".into(),
+        });
+
+        let response = client.say_hello(request).await.unwrap();
+        println!("response: {:?}", response.get_ref().message);
+
+        let request = tonic::Request::new(HelloRequest {
+            name: "Theo".into(),
+        });
+    
+        let response = client.say_hello(request).await.unwrap();
+        println!("response: {:?}", response.get_ref().message);
+
+        let request = tonic::Request::new(HelloRequest {
+            name: "Mathias".into(),
+        });
+    
+        let response = client.say_hello(request).await.unwrap();
+        println!("response: {:?}", response.get_ref().message);
+
+        let request = tonic::Request::new(HelloRequest {
+            name: "Chloe".into(),
+        });
     
         let response = client.say_hello(request).await.unwrap();
         println!("response: {:?}", response.get_ref().message);
@@ -116,6 +174,11 @@ async fn main() -> Result<()> {
         let mut client = FileServiceClient::new(channel);
 
         // Upload a file
+        
+        if cfg!(target_os = "windows") {
+            file_path = "./swift_file_examples/middle.txt".to_string();
+        }
+        /*
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
@@ -126,8 +189,44 @@ async fn main() -> Result<()> {
         });
 
         let response = client.upload_file(request).await?.into_inner();
-        //println!("Upload Response: {}", response.message);
+        println!("Upload Response: {}", response.message);
+        */
+        /* 
+        let mut client2 = client.clone();
 
+        let join_handle: task::JoinHandle<_> = task::spawn(async move {
+            let mut file = File::open("./swift_file_examples/other.txt").await;
+            let mut buffer = Vec::new();
+            file.expect("failed to open the file").read_to_end(&mut buffer).await;
+
+            let request = tonic::Request::new(FileData {
+                filename: "uploaded_example".into(),
+                data: buffer,
+            });
+
+            let response = client.upload_file(request).await.expect("Fail on the first file").into_inner();
+            println!("Upload Response: {}", response.message);
+        });
+
+        let join_handle2: task::JoinHandle<_> = task::spawn(async move{
+            let mut file = File::open(file_path).await;
+            let mut buffer = Vec::new();
+            file.expect("Failed to open the file").read_to_end(&mut buffer).await;
+
+            let request = tonic::Request::new(FileData {
+                filename: "uploaded_example".into(),
+                data: buffer,
+            });
+
+            let response = client2.upload_file(request).await.expect("Fail on the second file").into_inner();
+            println!("Upload Response: {}", response.message);
+        });
+
+        join_handle.await?;
+        join_handle2.await?; 
+
+     */
+        
         // Download a file
         let request = tonic::Request::new(FileRequest {
             filename: "uploaded_example".into(),
@@ -137,8 +236,8 @@ async fn main() -> Result<()> {
         let mut new_file = File::create("downloaded_example").await?;
         new_file.write_all(&response.data).await?;
 
-        //println!("File downloaded successfully!");
-
+        println!("File downloaded successfully!"); 
+        
     } else {
         panic!("Invalid protoBuf");
     }
@@ -161,6 +260,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
         let mut buf = [0; 65535];
         let mut out = [0; MAX_DATAGRAM_SIZE];
         let session_file = "session_file.bin";
+        let mut sending_request = false;
+        let mut stream_id = 0;
 
         // Setup the event loop.
         let mut poll = mio::Poll::new().unwrap();
@@ -191,9 +292,9 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_initial_max_data(10_000_000);
-        config.set_initial_max_stream_data_bidi_local(1_000_000_100);
-        config.set_initial_max_stream_data_bidi_remote(1_000_000_100);
-        config.set_initial_max_stream_data_uni(1_000_000_100);
+        config.set_initial_max_stream_data_bidi_local(1_000_000);
+        config.set_initial_max_stream_data_bidi_remote(1_000_000);
+        config.set_initial_max_stream_data_uni(1_000_000);
         config.set_initial_max_streams_bidi(100_000);
         config.set_initial_max_streams_uni(100_000);
         config.set_disable_active_migration(true);
@@ -250,15 +351,18 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             quiche::h3::Header::new(b":method", b"POST"),
         ];
 
+        let mut waiting_to_be_sent: Vec<PartialRequest> = Vec::new();
+
         let req_start = std::time::Instant::now();
 
-        loop {
+        loop {                                                                  
             if !conn.is_in_early_data() {
                 if poll_timeout == 0 {
                     poll.poll(&mut events, conn.timeout()).unwrap();
                 }
                 poll.poll(&mut events, Some(Duration::from_millis(poll_timeout))).unwrap();
             }
+            sleep(Duration::from_millis(1)).await;
 
             // Read incoming UDP packets from the socket and feed them to quiche,
             // until there are no more packets to read.
@@ -291,7 +395,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     },
                 };
 
-                info!("got {} bytes", len);
+                debug!("got {} bytes", len);
 
                 let recv_info = quiche::RecvInfo {
                     from,
@@ -350,13 +454,102 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             // all requests have been sent.
             if let Some(h3_conn) = &mut http3_conn {
                 loop{
+                    waiting_to_be_sent.retain_mut(|request| {
+                        if !sending_request {                     
+                            stream_id = match h3_conn.send_request(&mut conn, &req, false) {
+                                Ok(v) => v,
+                        
+                                Err(quiche::h3::Error::StreamBlocked) => {
+                                    //println!("stream blocked");
+                                    return true;
+                                },
+                        
+                                Err(e) => {
+                                    error!("{} stream send failed {:?}", conn.trace_id(), e);
+                                    return true;
+                                },
+                            };
+                        }
+
+                        let body = &request.body[request.written..];
+
+                        let mut end = false;
+                        let len = body.len();
+                        if len >= 9 && body[len - 9..len-1] == [0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00] {
+                            end = true;
+                        }
+
+                        let written = match h3_conn.send_body(&mut conn, stream_id, body, end) {
+                            Ok(v) => v,
+                    
+                            Err(quiche::h3::Error::Done) => 0,
+                    
+                            Err(e) => {
+                                error!("{} stream send failed {:?}", conn.trace_id(), e);
+                                return false;
+                            },
+                        };
+                    
+                        request.written += written;
+                    
+                        if request.written == request.body.len() {
+                            if end {
+                                println!("-END of gRPC request data-");
+                                sending_request = false;
+                            }
+
+                            return false;
+                        }
+                    
+                        true
+                    });
+
+                    /*
+                    let mut i = 0;
+                    for request in waiting_to_be_sent.iter_mut() {
+                        let stream_id = match h3_conn.send_request(&mut conn, &req, false) {
+                            Ok(v) => v,
+                    
+                            Err(quiche::h3::Error::StreamBlocked) => {
+                                println!("stream blocked");
+                                break;
+                            },
+                    
+                            Err(e) => {
+                                error!("{} stream send failed {:?}", conn.trace_id(), e);
+                                break;
+                            },
+                        };
+                    
+                        let written = match h3_conn.send_body(&mut conn, stream_id, &request.body[request.written..], false) {
+                            Ok(v) => v,
+                    
+                            Err(quiche::h3::Error::Done) => 0,
+                    
+                            Err(e) => {
+                                error!("{} stream send failed {:?}", conn.trace_id(), e);
+                                break;
+                            },
+                        };
+                    
+                        request.written += written;
+                    
+                        if request.written == request.body.len() {
+                            waiting_to_be_sent.remove(i);
+                            continue;
+                        }
+                    
+                        i += 1;
+                    } */
+                        
+
                     let data = match from_client.try_recv() {
                         Ok(v) => {
                             v },
                         Err(e) => {
                             if e == mpsc::error::TryRecvError::Empty {
-                                //sleep(Duration::from_millis(1)).await;
-                                sleep(Duration::new(0,1)).await;
+                                sleep(Duration::from_millis(10)).await;
+                                //sleep(Duration::new(0,1)).await;
                                 break;
                             }
 
@@ -364,23 +557,83 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             return Ok(());
                         },
                     };
-    
+
                     //println!("sending HTTP request {:?}", req);
                     //println!("sending HTTP data of size {:?}", data.len());
                     //println!("{:?}", data);
-                    let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
+                    //let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
                     //println!("stream_id: {:?}", stream_id);
-                    h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
-                }
+                    //h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
 
+                    println!("sending HTTP data of size {:?}", data.len());
+                    if !sending_request {
+                        stream_id = match h3_conn.send_request(&mut conn, &req, false) {
+                            Ok(v) => v,
+                    
+                            Err(quiche::h3::Error::StreamBlocked) => {
+                                println!("stream blocked");
+                                let request = PartialRequest {
+                                    body: data,
+                                    written: 0,
+                                };
+                    
+                                waiting_to_be_sent.push(request);
+                                break;
+                            },
+                    
+                            Err(e) => {
+                                error!("{} stream send failed {:?}", conn.trace_id(), e);
+                                break;
+                            },
+                        };
+                        sending_request = true;
+                    }
+
+                    //println!("stream_id: {:?}", stream_id);
+                    //let vec_to_string = String::from_utf8_lossy(&data);
+                    //println!("{:?}", data);
+                    //println!("{}", vec_to_string);
+                    let mut end = false;
+                    let len = data.len();
+                    if len >= 9 && data[len - 9..len-1] == [0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00] {
+                        end = true;
+                    }
+
+                    let written = match h3_conn.send_body(&mut conn, stream_id, &data, end) {
+                        Ok(v) => v,
+                
+                        Err(quiche::h3::Error::Done) => 0,
+                
+                        Err(e) => {
+                            error!("{} stream send failed {:?}", conn.trace_id(), e);
+                            break;
+                        },
+                    };
+                
+                    if written < data.len() {
+                        let request = PartialRequest {
+                            body: data,
+                            written,
+                        };
+                
+                        waiting_to_be_sent.push(request);
+                    } else {
+                        if written >= 9 && data[data.len() - 9..data.len()-1] == [0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00] { // end of gRPC request data
+                            println!("-END of gRPC request data-");
+                            sending_request = false;
+                        }
+                    }
+
+
+                }
             }
             
-            if let Some(http3_conn) = &mut http3_conn {
+            if let Some(http3_conn) = &mut http3_conn {            
                 // Process HTTP/3 events.
                 loop {
                     match http3_conn.poll(&mut conn) {
                         Ok((stream_id, quiche::h3::Event::Headers { list, .. })) => {
-                            info!(
+                            println!(
                                 "got response headers {:?} on stream id {}",
                                 hdrs_to_strings(&list),
                                 stream_id
@@ -391,7 +644,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             while let Ok(read) =
                                 http3_conn.recv_body(&mut conn, stream_id, &mut buf)
                             {
-                                debug!(
+                                println!(
                                     "got {} bytes of response data on stream {}",
                                     read, stream_id
                                 );
@@ -467,7 +720,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     panic!("send() failed: {:?}", e);
                 }
 
-                info!("written {}", write);
+                debug!("written {}", write);
             }
 
             if conn.is_closed() {
@@ -526,22 +779,37 @@ impl Client {
             if self.from_io.is_closed() {
                 return Ok(());
             }
-
         }
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("Received IO message: {:?}", msg);
-        //println!("[CLIENT] Received IO message of size: {:?}", msg.len());
-        self.stream.write(&msg).await?;
+        println!("[CLIENT] Received IO message of size: {:?}", msg.len());
         
+        let vec_to_string = String::from_utf8_lossy(&msg);
+        println!("{:?}", msg);
+        println!("{}", vec_to_string);
+        
+        self.stream.write(&msg).await?;
+
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
         //println!("Received gRPC message: {:?}", msg);
-        //println!("Size of msg : {:?}", msg.len());
-        //println!("[CLIENT] Received gRPC message of size: {:?}", msg.len());
+        //println!("Size of msg : {:?}", msg.len());s
+
+
+       println!("[CLIENT] Received gRPC message of size: {:?}", msg.len());
+        
+        let vec_to_string = String::from_utf8_lossy(msg.clone());
+        println!("{:?}", msg);
+        println!("{}", vec_to_string); 
+        
+        if self.to_io.is_closed() {
+            return Ok(());
+        }
+        
         self.to_io.send(msg.to_vec()).await?;
 
         Ok(())

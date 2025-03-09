@@ -57,12 +57,14 @@ mod tests {
         sleep(Duration::from_secs(1)).await;
         file_download_test("./swift_file_examples/small.txt".to_string()).await.unwrap();
         sleep(Duration::from_secs(1)).await;
-        /* Currently not okay with big files
+        
         file_upload_test("./swift_file_examples/big.txt".to_string()).await.unwrap();
         sleep(Duration::from_secs(1)).await;
+        /*
         file_download_test("./swift_file_examples/big.txt".to_string()).await.unwrap();
-        sleep(Duration::from_secs(1)).await; 
+        sleep(Duration::from_secs(1)).await;  
         */
+        
     }
 
 

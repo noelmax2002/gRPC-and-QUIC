@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::net;
 use tokio::io::DuplexStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task;
@@ -77,8 +77,6 @@ impl Greeter for MyGreeter {
 const MAX_DATAGRAM_SIZE: usize = 1350;
 
 struct PartialResponse {
-    headers: Option<Vec<quiche::h3::Header>>,
-
     body: Vec<u8>,
 
     written: usize,
@@ -92,19 +90,21 @@ struct QClient {
     http3_conn: Option<quiche::h3::Connection>,
 
     partial_responses: HashMap<u64, PartialResponse>,
+
+    sending_response: bool,
 }
 
 type ClientMap = HashMap<quiche::ConnectionId<'static>, QClient>;
 
 struct Io {
     // Towards the clients.
-    clients_tx: HashMap<quiche::ConnectionId<'static>, mpsc::Sender<Vec<u8>>>,
+    clients_tx: HashMap<quiche::ConnectionId<'static>, mpsc::UnboundedSender<Vec<u8>>>,
 
     // To receive messages from the clients.
-    rx: Receiver<(Vec<u8>, quiche::ConnectionId<'static>)>,
+    rx: UnboundedReceiver<(Vec<u8>, quiche::ConnectionId<'static>)>,
 
     // To let clients send messages to the IO thread.
-    tx: Sender<(Vec<u8>, quiche::ConnectionId<'static>)>,
+    tx: UnboundedSender<(Vec<u8>, quiche::ConnectionId<'static>)>,
 
     // DuplexStream with gRPC.
     to_grpc: UnboundedSender<std::result::Result<DuplexStream, String>>,
@@ -112,6 +112,8 @@ struct Io {
 
 impl Io {
     async fn run(&mut self) -> Result<()> {
+
+        let mut numbers_bytes_sent = 0;
 
         // Main task handling QUIC connections.
         let mut buf = [0; 65535];
@@ -143,12 +145,22 @@ impl Io {
         // Create the configuration for the QUIC connections.
         let mut config = quiche::Config::new(quiche::PROTOCOL_VERSION).unwrap();
 
-        config
-            .load_cert_chain_from_pem_file(&cert_file)
-            .unwrap();
-        config
-            .load_priv_key_from_pem_file(&key_file)
-            .unwrap();
+        if cfg!(target_os = "windows") {
+            config
+                .load_cert_chain_from_pem_file("src/cert.crt")
+                .unwrap();
+            config
+                .load_priv_key_from_pem_file("src/cert.key")
+                .unwrap();
+        } else {
+            config
+                .load_cert_chain_from_pem_file(&cert_file)
+                .unwrap();
+            config
+                .load_priv_key_from_pem_file(&key_file)
+                .unwrap();
+        }
+        
 
         config
             .set_application_protos(quiche::h3::APPLICATION_PROTOCOL)
@@ -158,10 +170,10 @@ impl Io {
         config.set_max_idle_timeout(idel_timeout);
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
-        config.set_initial_max_data(10_000_000);
-        config.set_initial_max_stream_data_bidi_local(1_000_000_000);
-        config.set_initial_max_stream_data_bidi_remote(1_000_000_000);
-        config.set_initial_max_stream_data_uni(1_000_000_000);
+        config.set_initial_max_data(10_000_000_000);
+        config.set_initial_max_stream_data_bidi_local(1_000);
+        config.set_initial_max_stream_data_bidi_remote(1_000);
+        config.set_initial_max_stream_data_uni(1_000);
         config.set_initial_max_streams_bidi(100);
         config.set_initial_max_streams_uni(100);
         config.set_disable_active_migration(true);
@@ -184,6 +196,8 @@ impl Io {
                     quiche::h3::Header::new(b":status", 200.to_string().as_bytes()),
                     quiche::h3::Header::new(b"server", b"quiche"),
                 ];
+        
+        //let mut received_buffer = Vec::new();
 
         loop {
             // Find the shorter timeout from all the active connections.
@@ -362,6 +376,7 @@ impl Io {
                         conn,
                         http3_conn: None,
                         partial_responses: HashMap::new(),
+                        sending_response: false,
                     };
 
                     clients.insert(scid.clone(), client);
@@ -389,7 +404,7 @@ impl Io {
                     },
                 };
 
-                info!("{} processed {} bytes", client.conn.trace_id(), read);
+                debug!("{} processed {} bytes", client.conn.trace_id(), read);
 
                 // Create a new HTTP/3 connection as soon as the QUIC connection
                 // is established.
@@ -426,10 +441,10 @@ impl Io {
                         Some(v) => v,
                         None => {
                             // Communication with gRPC.
-                            let (to_client, from_client) = tokio::io::duplex(1000);
+                            let (to_client, from_client) = tokio::io::duplex(1_000_000);
             
                             // Communication with IO.
-                            let (tx, rx) = mpsc::channel(1000);
+                            let (tx, rx) = mpsc::unbounded_channel();
 
                             //println!("Creating new gRPC channel with id {:?}", client.id);
             
@@ -466,6 +481,31 @@ impl Io {
                     // Process HTTP/3 events.
                     loop {
                         let http3_conn = client.http3_conn.as_mut().unwrap();
+                        /* 
+                        //try to send data from the received_buffer to client_tx
+                        if !received_buffer.is_empty() {
+                            let client_tx = match self.clients_tx.get(&client.id) {
+                                Some(v) => v,
+                                None => {
+                                   //error
+                                   println!("Client send data without proper http3 connection !");
+                                   continue;
+                                }
+                            };
+                            match client_tx.try_send(received_buffer.clone()) {
+                                Ok(v) => v,
+                                Err(mpsc::error::TrySendError::Full(_)) => {
+                                    //error
+                                    println!("Client send buffer is full !");
+                                    continue;
+                                },
+                                Err(e) => {
+                                    error!("gRPC channel closed: {:?}", e);
+                                    break;
+                                }
+                            }
+                            received_buffer.clear();
+                        }*/
 
                         match http3_conn.poll(&mut client.conn) {
                             Ok((
@@ -477,7 +517,7 @@ impl Io {
 
                             Ok((stream_id, quiche::h3::Event::Data)) => {
                                 while let Ok(read) = http3_conn.recv_body(&mut client.conn, stream_id, &mut buf) {
-                                    debug!(
+                                    println!(
                                         "got {} bytes of data on stream {}",
                                         read, stream_id
                                     );
@@ -492,9 +532,27 @@ impl Io {
                                            continue;
                                         }
                                     };
-                                    client_tx.send(buf[..read].to_vec()).await?;
-                                    //sleep(Duration::from_millis(1)).await;
-                                    sleep(Duration::new(0,10)).await;
+                                    match client_tx.send(buf[..read].to_vec()) {
+                                        Ok(v) => v,
+                                        /* 
+                                        Err(mpsc::error::TrySendError::Full(_)) => {
+                                            //error
+                                            println!("Client send buffer is full !");
+                                            //received_buffer.extend_from_slice(&buf[..read]);
+                                            sleep(Duration::new(0,1)).await;
+
+                                            continue;
+                                        },*/
+                                        Err(e) => {
+                                            println!("gRPC channel closed: {:?}", e);
+                                            break;
+                                        }
+                                    }
+                                    numbers_bytes_sent += read;
+                                    println!("Total bytes sent: {:?}", numbers_bytes_sent);
+
+                                   //sleep(Duration::from_millis(1)).await;
+                                    sleep(Duration::new(0,1)).await;
 
                                 }
                                 //client.conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0).unwrap();
@@ -543,7 +601,7 @@ impl Io {
 
                 //println!("sending HTTP response {:?}", resp);
                 //println!("{:?}", data);
-                //println!("sending HTTP response of size {:?}", data.len());
+                println!("sending HTTP response of size {:?}", data.len());
                 let client = match clients.get_mut(&id) {
                     Some(v) => v,
                     None => {
@@ -555,24 +613,28 @@ impl Io {
                 let stream_id = 0;
                 let h3_conn = client.http3_conn.as_mut().unwrap();
                 let conn = &mut client.conn;
-                match h3_conn.send_response(conn, stream_id, &resp, false) {
-                    Ok(v) => v,
-            
-                    Err(quiche::h3::Error::StreamBlocked) => {
-                        let response = PartialResponse {
-                            headers: Some(resp.clone()),
-                            body: data,
-                            written: 0,
-                        };
-            
-                        client.partial_responses.insert(stream_id, response);
-                        continue;
-                    },
-            
-                    Err(e) => {
-                        error!("{} stream send failed {:?}", conn.trace_id(), e);
-                        continue;
-                    },
+
+                if !client.sending_response {
+                    match h3_conn.send_response(conn, stream_id, &resp, false) {
+                        Ok(v) => v,
+                
+                        Err(quiche::h3::Error::StreamBlocked) => {
+                            println!("Stream blocked");
+                            let response = PartialResponse {
+                                body: data,
+                                written: 0,
+                            };
+                
+                            client.partial_responses.insert(stream_id, response);
+                            continue;
+                        },
+                
+                        Err(e) => {
+                            error!("{} stream send failed {:?}", conn.trace_id(), e);
+                            continue;
+                        },
+                    }
+                    client.sending_response = true;
                 }
             
                 // If last bytes of data are equal to [218,143,129,7] then its the end of the gRPC response
@@ -580,10 +642,10 @@ impl Io {
                 let mut stop = false;
                 let end = data.len();
                 if end >= 4 && data[end-4] == 218 && data[end-3] == 143 && data[end-2] == 129 && data[end-1] == 7{
-                    stop = false;
+                    stop = false; //must be set to true but leads to problem for now
                 }
 
-                match h3_conn.send_body(conn, stream_id, &data, stop) {
+                let written = match h3_conn.send_body(conn, stream_id, &data, stop) {
                     Ok(v) => v,
             
                     Err(quiche::h3::Error::Done) => 0,
@@ -593,6 +655,20 @@ impl Io {
                         continue;
                     },
                 };
+
+                if written < end{
+                    let response = PartialResponse {
+                        body: data,
+                        written,
+                    };
+
+                    client.partial_responses.insert(stream_id, response);
+                } else {
+                    if written >= 4 && data[written-4] == 218 && data[written-3] == 143 && data[written-2] == 129 && data[written-1] == 7{
+                        println!("-End of the gRPC response-");
+                        client.sending_response = false;
+                    }
+                }
                
             }
             
@@ -628,7 +704,7 @@ impl Io {
                         panic!("send() failed: {:?}", e);
                     }
 
-                    info!("{} written {} bytes", client.conn.trace_id(), write);
+                    debug!("{} written {} bytes", client.conn.trace_id(), write);
                 }
             }
 
@@ -723,9 +799,13 @@ impl Io {
 
         let resp = client.partial_responses.get_mut(&stream_id).unwrap();
 
-        if let Some(ref headers) = resp.headers {
-            debug!("{} stream send response {:?}", conn.trace_id(), headers);
-            match http3_conn.send_response(conn, stream_id, headers, false) {
+        let headers = vec![
+            quiche::h3::Header::new(b":status", 200.to_string().as_bytes()),
+            quiche::h3::Header::new(b"server", b"quiche"),
+        ];
+
+        if !client.sending_response {
+            match http3_conn.send_response(conn, stream_id, &headers, false) {
                 Ok(_) => (),
 
                 Err(quiche::h3::Error::StreamBlocked) => {
@@ -737,13 +817,18 @@ impl Io {
                     return;
                 },
             }
-        }
 
-        resp.headers = None;
+            client.sending_response = true;
+        }
 
         let body = &resp.body[resp.written..];
 
-        let written = match http3_conn.send_body(conn, stream_id, body, true) {
+        let mut stop = false;
+        let end = body.len();
+        if end >= 4 && body[end-4] == 218 && body[end-3] == 143 && body[end-2] == 129 && body[end-1] == 7{
+            stop = false; //must be set true but lead to problems for now
+        }
+        let written = match http3_conn.send_body(conn, stream_id, body, stop) {
             Ok(v) => v,
 
             Err(quiche::h3::Error::Done) => 0,
@@ -759,15 +844,22 @@ impl Io {
         resp.written += written;
 
         if resp.written == resp.body.len() {
+            if stop {
+                println!("-End of the gRPC response-");
+                client.sending_response = false;
+            }
+
             client.partial_responses.remove(&stream_id);
+        } else {
+            println!("{} stream {} written {} bytes", conn.trace_id(), stream_id, written);
         }
     }
 }
 
 struct Client {
     stream: DuplexStream,
-    to_io: Sender<(Vec<u8>, quiche::ConnectionId<'static>)>,
-    from_io: Receiver<Vec<u8>>,
+    to_io: UnboundedSender<(Vec<u8>, quiche::ConnectionId<'static>)>,
+    from_io: UnboundedReceiver<Vec<u8>>,
     id: quiche::ConnectionId<'static>,
 }
 
@@ -779,6 +871,7 @@ impl Client {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
                 Ok(len) = self.stream.read(&mut buf[..]) => {
                     if len == 0 {
+                        println!("Channel to gRPC closed");
                         return Ok(());
                     }
 
@@ -787,6 +880,7 @@ impl Client {
             }
 
             if self.from_io.is_closed() {
+                println!("Channel from IO closed");
                 return Ok(());
             }
 
@@ -795,18 +889,27 @@ impl Client {
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("[SERVER] Client got a message from IO: {:?}", msg);
-        //println!("[SERVER] Received IO message of size: {:?}", msg.len());
-
+        println!("[SERVER] Received IO message of size: {:?}", msg.len());
+        //sleep(Duration::from_millis(1)).await;
+         
+        let vec_to_string = String::from_utf8_lossy(&msg);
+        println!("{:?}", msg);
+        println!("{}", vec_to_string); 
+         
         self.stream.write(&msg).await?;
         
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
-        //println!("[SERVER] gRPC message of size: {:?}", msg.len());
+        println!("[SERVER] gRPC message of size: {:?}", msg.len());
         //println!("Received gRPC message: {:?}", msg);
-        self.to_io.send((msg.to_vec(), self.id.clone())).await?;
-
+        
+        let vec_to_string = String::from_utf8_lossy(msg.clone());
+        println!("{:?}", msg);
+        println!("{}", vec_to_string); 
+         
+        self.to_io.send((msg.to_vec(), self.id.clone()));
         Ok(())
     }
 }
@@ -823,7 +926,7 @@ pub async fn launch_server() -> Result<()> {
         mpsc::unbounded_channel::<std::result::Result<DuplexStream, String>>();
     
     // To let clients communicate with the main thread.
-    let (tx, rx) = mpsc::channel(1000);
+    let (tx, rx) = mpsc::unbounded_channel();
 
     let mut io = Io {
         clients_tx: HashMap::new(),

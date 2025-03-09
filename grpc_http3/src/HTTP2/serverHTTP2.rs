@@ -75,12 +75,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
     let proto = args.get_str("--proto").to_string();
     let addr = args.get_str("--sip").parse().unwrap();
-    let server_pem = args.get_str("--server-pem").to_string();
-    let server_key = args.get_str("--server-key").to_string();
+    let mut server_pem = args.get_str("--server-pem").to_string();
+    let mut server_key = args.get_str("--server-key").to_string();
 
+    
+    if cfg!(target_os = "windows") {
+        server_pem = "./src/HTTP2/tls/server.pem".to_string();
+        server_key = "./src/HTTP2/tls/server.key".to_string();
+    }
     let cert = std::fs::read_to_string(server_pem).expect("Failed to read server.pem");
     let key = std::fs::read_to_string(server_key).expect("Failed to read server.key");
     let identity = Identity::from_pem(cert, key);
+
 
     // Create tonic server builder.
     if proto == "helloworld" {

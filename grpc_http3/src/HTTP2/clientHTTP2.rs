@@ -45,11 +45,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
     let proto = args.get_str("--proto").to_string();
     let mut server_addr: String = args.get_str("--sip").parse().unwrap();
-    let ca_cert: String = args.get_str("--ca-cert").parse().unwrap();
-    let file_path: String = args.get_str("--file").parse().unwrap();
+    let mut ca_cert: String = args.get_str("--ca-cert").parse().unwrap();
+    let mut file_path: String = args.get_str("--file").parse().unwrap();
 
+
+    if cfg!(target_os = "windows") {
+        ca_cert = "./src/HTTP2/tls/ca.pem".to_string();
+    }
     let pem = std::fs::read_to_string(ca_cert)?;
     let ca = Certificate::from_pem(pem);
+
 
     let tls = ClientTlsConfig::new()
         .ca_certificate(ca)
@@ -80,6 +85,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut client = FileServiceClient::new(channel);
 
         // Upload a file
+        if cfg!(target_os = "windows") {
+            file_path = "./swift_file_examples/big.txt".to_string();
+        }
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
