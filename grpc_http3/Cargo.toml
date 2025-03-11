@@ -59,7 +59,9 @@ flume = "0.11.1"
 tokio-stream = "0.1.17" 
 tower = "0.5.1"
 hyper-util = "0.1.10"
-
+slab = "0.4"
+itertools = "0.10"
+rand = "0.9.0"
 
 [build-dependencies]
 tonic-build = "0.12"

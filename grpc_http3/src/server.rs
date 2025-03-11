@@ -16,6 +16,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task;
 use quiche;
+use quiche::ConnectionId;
 use ring::rand::*;
 use log::{info,error,debug};
 use std::pin::Pin;
@@ -39,6 +40,7 @@ pub mod filetransfer {
     tonic::include_proto!("filetransfer");
 }
 
+
 // Write the Docopt usage string.
 const USAGE: &'static str = "
 Usage: server [options]
@@ -52,6 +54,7 @@ Options:
     --poll-timeout TIMOUT   Timeout for polling the event loop in milliseconds [default: 1].
     --cert-file PATH        Path to the certificate file [default: ./cert.crt].
     --key-file PATH         Path to the private key file [default: ./cert.key].
+    --multipath             Enable multipath.
     -t --token              Enable stateless retry token.
 ";
 
@@ -75,6 +78,7 @@ impl Greeter for MyGreeter {
 }
 
 const MAX_DATAGRAM_SIZE: usize = 1350;
+pub type ClientId = u64;
 
 struct PartialResponse {
     body: Vec<u8>,
@@ -85,26 +89,31 @@ struct PartialResponse {
 struct QClient {
     id: quiche::ConnectionId<'static>,
 
-    conn: Pin<Box<quiche::Connection>>,
+    conn: Box<quiche::Connection>,
 
     http3_conn: Option<quiche::h3::Connection>,
+
+    pub client_id: ClientId,
 
     partial_responses: HashMap<u64, PartialResponse>,
 
     sending_response: bool,
+
+    
 }
 
-type ClientMap = HashMap<quiche::ConnectionId<'static>, QClient>;
+pub type ClientIdMap = HashMap<ConnectionId<'static>, ClientId>;
+type ClientMap = HashMap<ClientId, QClient>;
 
 struct Io {
     // Towards the clients.
-    clients_tx: HashMap<quiche::ConnectionId<'static>, mpsc::UnboundedSender<Vec<u8>>>,
+    clients_tx: HashMap<ClientId, mpsc::UnboundedSender<Vec<u8>>>,
 
     // To receive messages from the clients.
-    rx: UnboundedReceiver<(Vec<u8>, quiche::ConnectionId<'static>)>,
+    rx: UnboundedReceiver<(Vec<u8>, ClientId)>,
 
     // To let clients send messages to the IO thread.
-    tx: UnboundedSender<(Vec<u8>, quiche::ConnectionId<'static>)>,
+    tx: UnboundedSender<(Vec<u8>, ClientId)>,
 
     // DuplexStream with gRPC.
     to_grpc: UnboundedSender<std::result::Result<DuplexStream, String>>,
@@ -112,9 +121,6 @@ struct Io {
 
 impl Io {
     async fn run(&mut self) -> Result<()> {
-
-        let mut numbers_bytes_sent = 0;
-
         // Main task handling QUIC connections.
         let mut buf = [0; 65535];
         let mut out = [0; MAX_DATAGRAM_SIZE];
@@ -135,6 +141,7 @@ impl Io {
         let poll_timeout = args.get_str("--poll-timeout").parse::<u64>().unwrap();
         let cert_file = args.get_str("--cert-file").to_string();
         let key_file = args.get_str("--key-file").to_string();
+        let multipath = args.get_bool("--multipath");
        
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
@@ -181,16 +188,25 @@ impl Io {
             println!("Enabling 0-RTT");
             config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
         }
-       
 
+        if multipath {
+            config.set_initial_max_path_id(100);
+        } else {
+            config.set_initial_max_path_id(0);
+        }
+        config.set_max_connection_window(1_000_000);
+        config.set_max_stream_window(1_000_000);
+       
         let h3_config = quiche::h3::Config::new().unwrap();
 
         let rng = SystemRandom::new();
         let conn_id_seed = ring::hmac::Key::generate(ring::hmac::HMAC_SHA256, &rng).unwrap();
-
+        
+        let mut next_client_id = 0;
+        let mut clients_ids = ClientIdMap::new(); 
         let mut clients = ClientMap::new();
 
-        //let local_addr = socket.local_addr().unwrap();
+        let local_addr = socket.local_addr().unwrap();
 
         let resp = vec![
                     quiche::h3::Header::new(b":status", 200.to_string().as_bytes()),
@@ -245,7 +261,7 @@ impl Io {
                     },
                 };
 
-                info!("got {} bytes from {:?}", len, from);
+                debug!("got {} bytes from {:?}", len, from);
 
                 let pkt_buf = &mut buf[..len];
 
@@ -270,8 +286,8 @@ impl Io {
 
                 // Lookup a connection based on the packet's connection ID. If there
                 // is no connection matching, create a new one.
-                let client = if !clients.contains_key(&hdr.dcid) &&
-                    !clients.contains_key(&conn_id)
+                let client = if !clients_ids.contains_key(&hdr.dcid) &&
+                    !clients_ids.contains_key(&conn_id)
                 {
                     if hdr.ty != quiche::Type::Initial {
                         error!("Packet is not Initial");
@@ -366,31 +382,48 @@ impl Io {
                     let conn = quiche::accept(
                         &scid,
                         odcid.as_ref(),
+                        local_addr,
                         from,
                         &mut config,
                     )
                     .unwrap();
 
+                    let client_id = next_client_id;
+
                     let client = QClient {
                         id: scid.clone(),
-                        conn,
+                        conn: Box::new(conn),
                         http3_conn: None,
+                        client_id: client_id,
                         partial_responses: HashMap::new(),
                         sending_response: false,
                     };
 
-                    clients.insert(scid.clone(), client);
+                    clients.insert(client_id, client);
+                    clients_ids.insert(conn_id.clone(), client_id);
 
-                    clients.get_mut(&scid).unwrap()
+                    next_client_id += 1;
+
+                    clients.get_mut(&client_id).unwrap()
                 } else {
+                    /* 
                     match clients.get_mut(&hdr.dcid) {
                         Some(v) => v,
 
                         None => clients.get_mut(&conn_id).unwrap(),
-                    }
+                    }*/
+
+                    let cid = match clients_ids.get(&hdr.dcid) {
+                        Some(v) => v,
+    
+                        None => clients_ids.get(&conn_id).unwrap(),
+                    };
+    
+                    clients.get_mut(cid).unwrap()
                 };
 
                 let recv_info = quiche::RecvInfo {
+                    to: local_addr,
                     from,
                 };
 
@@ -436,8 +469,15 @@ impl Io {
                         client.conn.trace_id()
                     );
 
+                    println!("clients_ids: {:?}", clients_ids);
+                    println!("conn_id: {:?}", conn_id);
+                    let cid = match clients_ids.get(&conn_id) {
+                        Some(v) => v,
+                        None => clients_ids.get(&hdr.dcid).unwrap(),
+                    };
+
                     // Create a new Client to handle the connection to gRPC.
-                    match self.clients_tx.get(&conn_id) {
+                    match self.clients_tx.get(&cid) {
                         Some(v) => v,
                         None => {
                             // Communication with gRPC.
@@ -452,7 +492,7 @@ impl Io {
                                 stream: to_client,
                                 to_io: self.tx.clone(),
                                 from_io: rx,
-                                id: client.id.clone(),
+                                id: client.client_id.clone(),
                             };
             
                             // Let the client run on its own.
@@ -465,8 +505,8 @@ impl Io {
                             // Notify gRPC of the new client.
                             self.to_grpc.send(Ok(from_client))?;
             
-                            self.clients_tx.insert(client.id.clone(), tx);
-                            self.clients_tx.get_mut(&client.id.clone()).unwrap()
+                            self.clients_tx.insert(client.client_id.clone(), tx);
+                            self.clients_tx.get_mut(&client.client_id.clone()).unwrap()
                         }
                     };
             
@@ -523,7 +563,7 @@ impl Io {
                                     );
 
                                     //send data to gRPC
-                                    let client_tx = match self.clients_tx.get(&client.id) {
+                                    let client_tx = match self.clients_tx.get(&client.client_id) {
                                         Some(v) => v,
                                         None => {
                                            //error
@@ -548,9 +588,6 @@ impl Io {
                                             break;
                                         }
                                     }
-                                    numbers_bytes_sent += read;
-                                    println!("Total bytes sent: {:?}", numbers_bytes_sent);
-
                                    //sleep(Duration::from_millis(1)).await;
                                     sleep(Duration::new(0,1)).await;
 
@@ -564,7 +601,9 @@ impl Io {
 
                             Ok((_goaway_id, quiche::h3::Event::GoAway)) => (),
 
-                            Ok((_, quiche::h3::Event::Datagram)) => (),
+                            //Ok((_, quiche::h3::Event::Datagram)) => (),
+
+                            Ok((_, quiche::h3::Event::PriorityUpdate)) => (),
 
                             Err(quiche::h3::Error::Done) => {
                                 break;
@@ -602,6 +641,7 @@ impl Io {
                 //println!("sending HTTP response {:?}", resp);
                 //println!("{:?}", data);
                 println!("sending HTTP response of size {:?}", data.len());
+
                 let client = match clients.get_mut(&id) {
                     Some(v) => v,
                     None => {
@@ -666,12 +706,36 @@ impl Io {
                 } else {
                     if written >= 4 && data[written-4] == 218 && data[written-3] == 143 && data[written-2] == 129 && data[written-1] == 7{
                         println!("-End of the gRPC response-");
-                        client.sending_response = false;
+                        client.sending_response = true;
                     }
                 }
                
+                Self::handle_path_events(client);
+                    
+                // See whether source Connection IDs have been retired.
+                while let Some(retired_scid) = client.conn.retired_scid_next() {
+                    info!("Retiring source CID {:?}", retired_scid);
+                    clients_ids.remove(&retired_scid);
+                }
+
+                for path_id in client.conn.path_ids() {
+                    // Provides as many CIDs as possible.
+                    while client.conn.scids_left_on_path(path_id) > 0 {
+                        let (scid, reset_token) = Self::generate_cid_and_reset_token(&rng);
+                        if client
+                            .conn
+                            .new_scid_on_path(path_id, &scid, reset_token, false)
+                            .is_err()
+                        {
+                            break;
+                        }
+
+                        clients_ids.insert(scid, client.client_id);
+                    }
+                } 
             }
-            
+           
+
 
 
             // Generate outgoing QUIC packets for all active connections and send
@@ -714,20 +778,135 @@ impl Io {
 
                 if c.conn.is_closed() {
                     println!(
-                        "{} connection collected {:?}",
+                        "{} connection collected {:?} {:?}",
                         c.conn.trace_id(),
-                        c.conn.stats()
+                        c.conn.stats(),
+                        c.conn.path_stats().collect::<Vec<quiche::PathStats>>()
                     );
-                }
+
+                    for id in c.conn.source_ids() {
+                        let id_owned = id.clone().into_owned();
+                        clients_ids.remove(&id_owned);
+                }                
+            }
 
                 !c.conn.is_closed()
             });
+
+            
 
             self.clients_tx.retain(|k, _| {
                 clients.contains_key(k)
             });
 
         }
+    }
+
+    fn handle_path_events(client: &mut QClient) {
+        while let Some((pid, qe)) = client.conn.path_event_next() {
+            match qe {
+                quiche::PathEvent::New(local_addr, peer_addr) => {
+                    println!(
+                        "{} Seen new path ({}, {}) with ID {}",
+                        client.conn.trace_id(),
+                        local_addr,
+                        peer_addr,
+                        pid
+                    );
+    
+                    // Directly probe the new path.
+                    client
+                        .conn
+                        .probe_path(local_addr, peer_addr)
+                        .map_err(|e| error!("cannot probe: {}", e))
+                        .ok();
+                },
+    
+                quiche::PathEvent::Validated(local_addr, peer_addr) => {
+                    println!(
+                        "{} Path ({}, {}) with ID {} is now validated",
+                        client.conn.trace_id(),
+                        local_addr,
+                        peer_addr,
+                        pid
+                    );
+                    if client.conn.is_multipath_enabled() {
+                        client
+                            .conn
+                            .set_active(local_addr, peer_addr, true)
+                            .map_err(|e| error!("cannot set path active: {}", e))
+                            .ok();
+                    }
+                },
+    
+                quiche::PathEvent::FailedValidation(local_addr, peer_addr) => {
+                    println!(
+                        "{} Path ({}, {}) with ID {} failed validation",
+                        client.conn.trace_id(),
+                        local_addr,
+                        peer_addr,
+                        pid
+                    );
+                },
+    
+                quiche::PathEvent::Closed(local_addr, peer_addr, err) => {
+                    println!(
+                        "{} Path ({}, {}) with ID {} is now closed and unusable; err = {}",
+                        client.conn.trace_id(),
+                        local_addr,
+                        peer_addr,
+                        pid,
+                        err,
+                    );
+                },
+    
+                quiche::PathEvent::ReusedSourceConnectionId(cid_seq, old, new) => {
+                    println!(
+                        "{} Peer reused cid seq {} (initially {:?}) on {:?} on path ID {}",
+                        client.conn.trace_id(),
+                        cid_seq,
+                        old,
+                        new,
+                        pid
+                    );
+                },
+    
+                quiche::PathEvent::PeerMigrated(local_addr, peer_addr) => {
+                    println!(
+                        "{} Connection migrated to ({}, {}) on Path ID {}",
+                        client.conn.trace_id(),
+                        local_addr,
+                        peer_addr,
+                        pid
+                    );
+                },
+    
+                quiche::PathEvent::PeerPathStatus(addr, path_status) => {
+                    println!(
+                        "Peer asks status {:?} for {:?} on path ID {}",
+                        path_status, addr, pid
+                    );
+                    client
+                        .conn
+                        .set_path_status(addr.0, addr.1, path_status, false)
+                        .map_err(|e| error!("cannot follow status request: {}", e))
+                        .ok();
+                },
+            }
+        }
+    }
+
+    /// Generate a new pair of Source Connection ID and reset token.
+    pub fn generate_cid_and_reset_token<T: SecureRandom>(
+        rng: &T,
+    ) -> (quiche::ConnectionId<'static>, u128) {
+        let mut scid = [0; quiche::MAX_CONN_ID_LEN];
+        rng.fill(&mut scid).unwrap();
+        let scid = scid.to_vec().into();
+        let mut reset_token = [0; 16];
+        rng.fill(&mut reset_token).unwrap();
+        let reset_token = u128::from_be_bytes(reset_token);
+        (scid, reset_token)
     }
 
     /// Generate a stateless retry token.
@@ -858,9 +1037,9 @@ impl Io {
 
 struct Client {
     stream: DuplexStream,
-    to_io: UnboundedSender<(Vec<u8>, quiche::ConnectionId<'static>)>,
+    to_io: UnboundedSender<(Vec<u8>, ClientId)>,
     from_io: UnboundedReceiver<Vec<u8>>,
-    id: quiche::ConnectionId<'static>,
+    id: ClientId,
 }
 
 impl Client {
@@ -889,26 +1068,27 @@ impl Client {
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("[SERVER] Client got a message from IO: {:?}", msg);
-        println!("[SERVER] Received IO message of size: {:?}", msg.len());
         //sleep(Duration::from_millis(1)).await;
-         
+        
+        /* 
+        println!("[SERVER] Received IO message of size: {:?}", msg.len());
         let vec_to_string = String::from_utf8_lossy(&msg);
         println!("{:?}", msg);
         println!("{}", vec_to_string); 
-         
+         */
         self.stream.write(&msg).await?;
         
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
-        println!("[SERVER] gRPC message of size: {:?}", msg.len());
         //println!("Received gRPC message: {:?}", msg);
-        
+        /* 
+        println!("[SERVER] gRPC message of size: {:?}", msg.len());
         let vec_to_string = String::from_utf8_lossy(msg.clone());
         println!("{:?}", msg);
         println!("{}", vec_to_string); 
-         
+         */
         self.to_io.send((msg.to_vec(), self.id.clone()));
         Ok(())
     }
