@@ -18,7 +18,7 @@ use tokio::task;
 use quiche;
 use quiche::ConnectionId;
 use ring::rand::*;
-use log::{info,error,debug};
+use log::{info,error,debug, trace};
 use std::pin::Pin;
 use docopt::Docopt;
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
@@ -52,8 +52,8 @@ Options:
     --timeout TIMEOUT       Idle timeout of the QUIC connection in milliseconds [default: 5000].
     -e --early              Enable 0-RTT.
     --poll-timeout TIMOUT   Timeout for polling the event loop in milliseconds [default: 1].
-    --cert-file PATH        Path to the certificate file [default: ./cert.crt].
-    --key-file PATH         Path to the private key file [default: ./cert.key].
+    --cert-file PATH        Path to the certificate file [default: cert.crt].
+    --key-file PATH         Path to the private key file [default: cert.key].
     --multipath             Enable multipath.
     -t --token              Enable stateless retry token.
 ";
@@ -78,6 +78,7 @@ impl Greeter for MyGreeter {
 }
 
 const MAX_DATAGRAM_SIZE: usize = 1350;
+const MAX_BUF_SIZE: usize = 65507;
 pub type ClientId = u64;
 
 struct PartialResponse {
@@ -99,6 +100,11 @@ struct QClient {
 
     sending_response: bool,
 
+    pub max_datagram_size: usize,
+
+    pub loss_rate: f64,
+
+    pub max_send_burst: usize,
     
 }
 
@@ -122,8 +128,8 @@ struct Io {
 impl Io {
     async fn run(&mut self) -> Result<()> {
         // Main task handling QUIC connections.
-        let mut buf = [0; 65535];
-        let mut out = [0; MAX_DATAGRAM_SIZE];
+        let mut buf = [0; MAX_BUF_SIZE];
+        let mut out = [0; MAX_BUF_SIZE];
 
         // Setup the event loop.
         let mut poll = mio::Poll::new().unwrap();
@@ -183,7 +189,7 @@ impl Io {
         config.set_initial_max_stream_data_uni(1_000);
         config.set_initial_max_streams_bidi(100);
         config.set_initial_max_streams_uni(100);
-        config.set_disable_active_migration(true);
+        config.set_disable_active_migration(false);
         if early_data {
             println!("Enabling 0-RTT");
             config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
@@ -214,17 +220,32 @@ impl Io {
                 ];
         
         //let mut received_buffer = Vec::new();
+        let mut continue_write = false;
 
         loop {
             // Find the shorter timeout from all the active connections.
             //
             // TODO: use event loop that properly supports timers
+            let mut timeout = match continue_write {
+                true => Some(Duration::from_millis(0)),
+
+                false => {
+                    if poll_timeout == 0 {
+                        clients.values().filter_map(|c| c.conn.timeout()).min()
+                    } else {
+                        Some(Duration::from_millis(poll_timeout))
+                    }
+                },
+            };
+            poll.poll(&mut events, timeout).unwrap();
+
+            /*
             if poll_timeout == 0 {
                 let mut timeout = clients.values().filter_map(|c| c.conn.timeout()).min();
                 poll.poll(&mut events, timeout).unwrap();
             } else {
                 poll.poll(&mut events, Some(Duration::from_millis(poll_timeout))).unwrap();
-            }
+            }*/
 
             // Read incoming UDP packets from the socket and feed them to quiche,
             // until there are no more packets to read.
@@ -232,7 +253,7 @@ impl Io {
                 // If the event loop reported no events, it means that the timeout
                 // has expired, so handle it without attempting to read packets. We
                 // will then proceed with the send loop.
-                if events.is_empty() {
+                if events.is_empty() && !continue_write {
                     debug!("timed out");
 
                     clients.values_mut().for_each(|c| c.conn.on_timeout());
@@ -397,6 +418,9 @@ impl Io {
                         client_id: client_id,
                         partial_responses: HashMap::new(),
                         sending_response: false,
+                        max_datagram_size: MAX_DATAGRAM_SIZE,
+                        loss_rate: 0.0,
+                        max_send_burst: MAX_BUF_SIZE,
                     };
 
                     clients.insert(client_id, client);
@@ -469,8 +493,6 @@ impl Io {
                         client.conn.trace_id()
                     );
 
-                    println!("clients_ids: {:?}", clients_ids);
-                    println!("conn_id: {:?}", conn_id);
                     let cid = match clients_ids.get(&conn_id) {
                         Some(v) => v,
                         None => clients_ids.get(&hdr.dcid).unwrap(),
@@ -509,7 +531,9 @@ impl Io {
                             self.clients_tx.get_mut(&client.client_id.clone()).unwrap()
                         }
                     };
-            
+                    
+                    // Update max_datagram_size after connection established.
+                    client.max_datagram_size = client.conn.max_send_udp_payload_size();
                 }
 
                 if client.http3_conn.is_some() {
@@ -557,11 +581,10 @@ impl Io {
 
                             Ok((stream_id, quiche::h3::Event::Data)) => {
                                 while let Ok(read) = http3_conn.recv_body(&mut client.conn, stream_id, &mut buf) {
-                                    println!(
+                                    info!(
                                         "got {} bytes of data on stream {}",
                                         read, stream_id
                                     );
-
                                     //send data to gRPC
                                     let client_tx = match self.clients_tx.get(&client.client_id) {
                                         Some(v) => v,
@@ -640,7 +663,7 @@ impl Io {
 
                 //println!("sending HTTP response {:?}", resp);
                 //println!("{:?}", data);
-                println!("sending HTTP response of size {:?}", data.len());
+                //println!("sending HTTP response of size {:?}", data.len());
 
                 let client = match clients.get_mut(&id) {
                     Some(v) => v,
@@ -705,7 +728,7 @@ impl Io {
                     client.partial_responses.insert(stream_id, response);
                 } else {
                     if written >= 4 && data[written-4] == 218 && data[written-3] == 143 && data[written-2] == 129 && data[written-1] == 7{
-                        println!("-End of the gRPC response-");
+                        //println!("-End of the gRPC response-");
                         client.sending_response = true;
                     }
                 }
@@ -741,6 +764,7 @@ impl Io {
             // Generate outgoing QUIC packets for all active connections and send
             // them on the UDP socket, until quiche reports that there are no more
             // packets to be sent.
+            /*
             for client in clients.values_mut() {
                 loop {
                     let (write, send_info) = match client.conn.send(&mut out) {
@@ -770,7 +794,101 @@ impl Io {
 
                     debug!("{} written {} bytes", client.conn.trace_id(), write);
                 }
+            }*/
+            continue_write = false;
+            for client in clients.values_mut() {
+                // Reduce max_send_burst by 25% if loss is increasing more than 0.1%.
+                let loss_rate =
+                    client.conn.stats().lost as f64 / client.conn.stats().sent as f64;
+                if loss_rate > client.loss_rate + 0.001 {
+                    client.max_send_burst = client.max_send_burst / 4 * 3;
+                    // Minimun bound of 10xMSS.
+                    client.max_send_burst =
+                        client.max_send_burst.max(client.max_datagram_size * 10);
+                    client.loss_rate = loss_rate;
+                }
+
+                let max_send_burst =
+                    client.conn.send_quantum().min(client.max_send_burst) /
+                        client.max_datagram_size *
+                        client.max_datagram_size;
+                let mut total_write = 0;
+                let mut dst_info: Option<quiche::SendInfo> = None;
+
+                while total_write < max_send_burst {
+                    let res = match dst_info {
+                        Some(info) => client.conn.send_on_path(
+                            &mut out[total_write..max_send_burst],
+                            Some(info.from),
+                            Some(info.to),
+                        ),
+                        None =>
+                            client.conn.send(&mut out[total_write..max_send_burst]),
+                    };
+
+                    let (write, send_info) = match res {
+                        Ok(v) => v,
+
+                        Err(quiche::Error::Done) => {
+                            continue_write = dst_info.is_some();
+                            trace!("{} done writing", client.conn.trace_id());
+                            break;
+                        },
+
+                        Err(e) => {
+                            error!("{} send failed: {:?}", client.conn.trace_id(), e);
+
+                            client.conn.close(false, 0x1, b"fail").ok();
+                            break;
+                        },
+                    };
+
+                    total_write += write;
+
+                    // Use the first packet time to send, not the last.
+                    let _ = dst_info.get_or_insert(send_info);
+
+                    if write < client.max_datagram_size {
+                        continue_write = true;
+                        break;
+                    }
+                }
+
+                if total_write == 0 || dst_info.is_none() {
+                    continue;
+                }
+
+                if let Err(e) = Self::send_to(
+                    &socket,
+                    &out[..total_write],
+                    &dst_info.unwrap(),
+                    client.max_datagram_size,
+                ) {
+                    if e.kind() == std::io::ErrorKind::WouldBlock {
+                        trace!("send() would block");
+                        break;
+                    }
+
+                    panic!("send_to() failed: {:?}", e);
+                }
+
+                trace!("{} written {} bytes", client.conn.trace_id(), total_write);
+
+                if continue_write {
+                    trace!(
+                        "{} pause writing and consider another path",
+                        client.conn.trace_id()
+                    );
+                    break;
+                }
+
+                if total_write >= max_send_burst {
+                    trace!("{} pause writing", client.conn.trace_id(),);
+                    continue_write = true;
+                    break;
+                }
             }
+
 
             // Garbage collect closed connections.
             clients.retain(|_, ref mut c| {
@@ -1024,7 +1142,7 @@ impl Io {
 
         if resp.written == resp.body.len() {
             if stop {
-                println!("-End of the gRPC response-");
+                //println!("-End of the gRPC response-");
                 client.sending_response = false;
             }
 
@@ -1032,6 +1150,31 @@ impl Io {
         } else {
             println!("{} stream {} written {} bytes", conn.trace_id(), stream_id, written);
         }
+    }
+
+    pub fn send_to(
+        socket: &mio::net::UdpSocket, buf: &[u8], send_info: &quiche::SendInfo,
+        segment_size: usize,
+    ) -> std::io::Result<usize> {
+        let mut off = 0;
+        let mut left = buf.len();
+        let mut written = 0;
+
+        while left > 0 {
+            let pkt_len = std::cmp::min(left, segment_size);
+
+            match socket.send_to(&buf[off..off + pkt_len], send_info.to) {
+                Ok(v) => {
+                    written += v;
+                },
+                Err(e) => return Err(e),
+            }
+
+            off += pkt_len;
+            left -= pkt_len;
+        }
+
+        Ok(written)
     }
 }
 
@@ -1142,7 +1285,7 @@ pub async fn launch_server() -> Result<()> {
                 .unwrap();
         });
 
-    } else if proto == "filetransfer" {
+    } else if proto == "filetransfer" || proto == "fileexchange" {
         let file_service = MyFileService::default();
         task::spawn(async move {
             Server::builder()
@@ -1314,6 +1457,22 @@ impl FileService for MyFileService {
         let mut file = File::open(&filename).await.map_err(|e| Status::not_found(e.to_string()))?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await.map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(FileData { filename, data: buffer }))
+    }
+
+    async fn exchange_file(
+        &self,
+        request: Request<FileData>,
+    ) -> std::result::Result<Response<FileData>, Status> {
+        let file = request.into_inner();
+        let mut new_file = File::create(file.filename.clone()).await.map_err(|e| Status::internal(e.to_string()))?;
+        new_file.write_all(&file.data).await.map_err(|e| Status::internal(e.to_string()))?;
+
+        let filename = file.filename;
+        let mut file_down = File::open(&filename).await.map_err(|e| Status::not_found(e.to_string()))?;
+        let mut buffer = Vec::new();
+        file_down.read_to_end(&mut buffer).await.map_err(|e| Status::internal(e.to_string()))?;
 
         Ok(Response::new(FileData { filename, data: buffer }))
     }

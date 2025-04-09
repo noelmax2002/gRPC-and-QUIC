@@ -4,6 +4,7 @@ package filetransfer;
 service FileService {
   rpc UploadFile (FileData) returns (UploadResponse);
   rpc DownloadFile (FileRequest) returns (FileData);
+  rpc ExchangeFile (FileData) returns (FileData);
 }
 
 message FileData {

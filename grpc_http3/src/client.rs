@@ -56,15 +56,19 @@ Usage: client [options]
 
 Options:
     -s --sip ADDRESS                Server IPv4 address and port [default: 127.0.0.1:4433].
+    -A --address ADDR ...           Client potential multiple addresses.
     -p --proto PROTOCOL             Choose the protoBuf to use [default: helloworld].
-    -t --timeout TIMEOUT            Idle timeout of the QUIC connection in milliseconds [default: 5000].
+    --timeout TIMEOUT               Idle timeout of the QUIC connection in milliseconds [default: 5000].
     -e --early                      Enable sending early data.
     -r --connetion-resumption       Enable connection resumption.
     --poll-timeout TIMEOUT          Timeout for polling the event loop in milliseconds [default: 1].
     --file FILE                     File to upload [default: ../swift_file_examples/small.txt].
     --multipath                     Enable multipath.
-    --scheduler SCHEDULER           Choose the scheduler to use [default: random].
+    --scheduler SCHEDULER           Choose the scheduler to use [default: lrtt].
+    -n --num NUM                    Number of requests to send [default: 10].
+    -t --time DURATION              Duration between each request [default: 500].
     --nocapture                     Do not capture the output of the test.
+    
 ";
 
 struct PartialRequest{
@@ -81,6 +85,8 @@ async fn main() -> Result<()> {
     let mut server_addr = args.get_str("--sip").to_string();
     let proto = args.get_str("--proto").to_string();
     let mut file_path = args.get_str("--file").to_string();
+    let mut n = args.get_str("--num").parse().unwrap();
+    let dur = args.get_str("--time").parse::<u64>().unwrap();
 
     //127.0.0.1:4433
     //192.168.1.7:8080"
@@ -246,12 +252,45 @@ async fn main() -> Result<()> {
 
         println!("File downloaded successfully!"); 
         */
+    } else if proto.as_str() == "fileexchange" {
+        let mut client = FileServiceClient::new(channel);
+
+        for i in 0..n {
+
+            sleep(Duration::from_millis(dur)).await;
+
+            let s = Instant::now();
+            // exchange a file
+            if cfg!(target_os = "windows") {
+                file_path = "./swift_file_examples/big.txt".to_string();
+            }
+            let mut file = File::open(file_path.clone()).await?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer).await?;
+
+            let request = tonic::Request::new(FileData {
+                filename: "uploaded_example".into(),
+                data: buffer,
+            });
+
+            let response = client.exchange_file(request).await?.into_inner();
+
+            let mut new_file = File::create("downloaded_example").await?;
+            new_file.write_all(&response.data).await?;
+
+            println!("File exchanged successfully!");
+
+            let d = s.elapsed();
+            let c = start.elapsed();
+            println!("Time elapsed: ({:?} ,{:?})", c.as_secs_f64(), d.as_secs_f64());
+        }
+
     } else {
         panic!("Invalid protoBuf");
     }
         
     let duration = start.elapsed();
-    println!("Time elapsed: {:?}", duration.as_secs_f64());
+    println!("Total time elapsed: {:?}", duration.as_secs_f64());
 
     Ok(())
 }
@@ -281,13 +320,20 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
         //creates a vectors or local addresses 'SocketAddr' with 127.0.0.1:0 and 127.0.0.1:4455
 
-        let addr1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
-        let addr2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3355);
+        //let addr1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        //let addr2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3355);
 
-        let mut addrs: Vec<SocketAddr> = Vec::new();
-        addrs.push(addr2);
-        addrs.push(addr1);
-        
+        let mut addrs: Vec<SocketAddr> = args
+            .get_vec("--address")
+            .into_iter()
+            .filter_map(|a| a.parse().ok())
+            .collect();
+
+        if addrs.is_empty() {
+            addrs.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080));
+            addrs.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3355));
+        }
+            
         
         // Create the UDP socket backing the QUIC connection, and register it with
         // the event loop.
@@ -299,13 +345,13 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 addrs.push(*src);
             }
         }
-        println!("Addresses : {:?}", addrs);
+        //println!("Addresses : {:?}", addrs);
 
         let mut rm_addrs: Vec<(std::time::Duration, SocketAddr)> = Vec::new();
         let mut status: Vec<(std::time::Duration, SocketAddr, bool)> = Vec::new();
         let mut retire_dcids: Vec<(std::time::Duration, PathId, CIDSeq)> = Vec::new();
 
-        status.push(((std::time::Duration::from_millis(1)), addr2, true));
+        //status.push(((std::time::Duration::from_millis(1)), addr2, true));
 
         // Create the configuration for the QUIC connection.
         let mut config = quiche::Config::new(quiche::PROTOCOL_VERSION).unwrap();
@@ -327,7 +373,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
         config.set_initial_max_stream_data_uni(1_000_000);
         config.set_initial_max_streams_bidi(100_000);
         config.set_initial_max_streams_uni(100_000);
-        config.set_disable_active_migration(true);
+        config.set_disable_active_migration(false);
         if early_data {
             config.enable_early_data();
         }
@@ -438,14 +484,14 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                                 break 'read;
                             } 
 
-                            println!("recv() failed: {:?}", e);
+                            info!("recv() failed: {:?}", e);
                             break;  
 
                             //panic!("recv() failed: {:?}", e);
                         },
                     };
 
-                    debug!("got {} bytes", len);
+                    info!("got {} bytes on addr {}", len, local_addr);
 
                     let recv_info = quiche::RecvInfo {
                         to: local_addr,
@@ -546,7 +592,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     
                         if request.written == request.body.len() {
                             if end {
-                                println!("-END of gRPC request data-");
+                                //println!("-END of gRPC request data-");
                                 sending_request = false;
                             }
 
@@ -617,13 +663,13 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     //println!("stream_id: {:?}", stream_id);
                     //h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
 
-                    println!("sending HTTP data of size {:?}", data.len());
+                    //println!("sending HTTP data of size {:?}", data.len());
                     if !sending_request {
                         stream_id = match h3_conn.send_request(&mut conn, &req, false) {
                             Ok(v) => v,
                     
                             Err(quiche::h3::Error::StreamBlocked) => {
-                                println!("stream blocked");
+                                info!("stream blocked");
                                 let request = PartialRequest {
                                     body: data,
                                     written: 0,
@@ -671,7 +717,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         waiting_to_be_sent.push(request);
                     } else {
                         if written >= 9 && data[data.len() - 9..data.len()-1] == [0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00] { // end of gRPC request data
-                            println!("-END of gRPC request data-");
+                            //println!("-END of gRPC request data-");
                             sending_request = false;
                         }
                     }
@@ -685,7 +731,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 loop {
                     match http3_conn.poll(&mut conn) {
                         Ok((stream_id, quiche::h3::Event::Headers { list, .. })) => {
-                            println!(
+                            info!(
                                 "got response headers {:?} on stream id {}",
                                 hdrs_to_strings(&list),
                                 stream_id
@@ -696,7 +742,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             while let Ok(read) =
                                 http3_conn.recv_body(&mut conn, stream_id, &mut buf)
                             {
-                                println!(
+                                info!(
                                     "got {} bytes of response data on stream {}",
                                     read, stream_id
                                 );
@@ -799,7 +845,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             // See whether source Connection IDs have been retired.
             while let Some((path_id, retired_scid)) = conn.retired_scid_on_path_next()
             {
-                println!(
+                info!(
                     "Retiring source CID {:?} from path_id {}",
                     retired_scid, path_id
                 );
@@ -870,13 +916,16 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             //let scheduled_tuples = lowest_latency_scheduler(&conn);
             let mut scheduled_tuples = scheduler_fn(&conn, scheduler);
 
-            
 
             // Generate outgoing QUIC packets and send them on the UDP socket, until
             // quiche reports that there are no more packets to be sent.
             for (local_addr, peer_addr) in scheduled_tuples {
                 let token = src_addr_to_token[&local_addr];
                 let socket = &sockets[token];
+                info!(
+                    "sending on path ({}, {})",
+                    local_addr, peer_addr
+                );
                 loop {
                     let (write, send_info) = match conn.send_on_path(
                         &mut out,
@@ -886,12 +935,12 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         Ok(v) => v,
 
                         Err(quiche::Error::Done) => {
-                            println!("{} -> {}: done writing", local_addr, peer_addr);
+                            //println!("{} -> {}: done writing", local_addr, peer_addr);
                             break;
                         },
 
                         Err(e) => {
-                            println!(
+                            info!(
                                 "{} -> {}: send failed: {:?}",
                                 local_addr, peer_addr, e
                             );
@@ -903,7 +952,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
                     if let Err(e) = socket.send_to(&out[..write], send_info.to) {
                         if e.kind() == std::io::ErrorKind::WouldBlock {
-                            trace!(
+                            println!(
                                 "{} -> {}: send() would block",
                                 local_addr,
                                 send_info.to
@@ -914,7 +963,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         panic!("send() failed: {:?}", e);
                     }
 
-                    println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                    info!("{} -> {}: written {}", local_addr, send_info.to, write);
                 }
             }
     
@@ -1067,7 +1116,7 @@ fn scheduler_fn(
         let mut paths: Vec<_> = conn
             .path_stats()
             .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
-            .sorted_by_key(|p| p.rtt)
+            .sorted_by_key(|p| {info!("path {:?} with RTT : {:?}", p.path_id, p.rtt); p.rtt})
             .map(|p| (p.local_addr, p.peer_addr))
             .collect();
 
@@ -1079,7 +1128,7 @@ fn scheduler_fn(
         let mut paths: Vec<_> = conn
             .path_stats()
             .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
-            .map(|p| (p.local_addr, p.peer_addr))
+            .map(|p| {info!("path {:?} with RTT : {:?}", p.path_id, p.rtt); (p.local_addr, p.peer_addr)})
             .collect();   
 
         paths.shuffle(&mut thread_rng());

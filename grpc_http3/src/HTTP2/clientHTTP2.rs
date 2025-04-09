@@ -9,9 +9,12 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_stream::{Stream, StreamExt};
 use docopt::Docopt;
+use core::net::IpAddr;
+use tokio::time::sleep;
+
 
 #[cfg(feature = "tls")]
-use tonic::transport::{Certificate, Channel, ClientTlsConfig};
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -30,10 +33,13 @@ const USAGE: &'static str = "
 Usage: client [options]
 
 Options:
-    -s --sip ADDRESS                Server IPv4 address and port [default: 127.0.0.1:4433].
+    -s --sip ADDRESS ...            Server IPv4 address and port [default: 127.0.0.1:4433].
+    -A --address ADDR ...           Client potential multiple addresses.
     --ca-cert PATH                  Path to ca.pem [default: ./HTTP2/tls/ca.pem].
     --file FILE                     File to upload [default: ../swift_file_examples/small.txt].
     -p --proto PROTOCOL             Choose the protoBuf to use [default: helloworld].
+    -n --num NUM                    Number of requests to send [default: 10].
+    -t --time DURATION              Duration between each request [default: 500].
 ";
 
 //[::1]:50051
@@ -44,10 +50,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
     let proto = args.get_str("--proto").to_string();
-    let mut server_addr: String = args.get_str("--sip").parse().unwrap();
+    
     let mut ca_cert: String = args.get_str("--ca-cert").parse().unwrap();
     let mut file_path: String = args.get_str("--file").parse().unwrap();
+    let mut n = args.get_str("--num").parse().unwrap();
+    let dur = args.get_str("--time").parse::<u64>().unwrap();
 
+    let mut server_addrs: Vec<&str> = args
+        .get_vec("--sip");
+
+   
+    let mut server_addr: String = server_addrs[0].to_string();
+  
 
     if cfg!(target_os = "windows") {
         ca_cert = "./src/HTTP2/tls/ca.pem".to_string();
@@ -60,10 +74,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ca_certificate(ca)
         .domain_name("example.com");
 
-    let mut channel = Channel::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
+    let mut addrs: Vec<IpAddr> = args
+        .get_vec("--address")
+        .into_iter()
+        .filter_map(|a| a.parse().ok())
+        .collect();
+
+    let mut channel;
+
+    if addrs.len() == 2 && server_addrs.len() == 1 {
+        let endpoint1 = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
+            .local_address(Some(addrs[0]))
+            .timeout(Duration::from_secs(5))
+            .tls_config(tls.clone())?;
+        
+        let endpoint2 = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
+            .local_address(Some(addrs[1]))
+            .timeout(Duration::from_secs(5))
+            .tls_config(tls.clone())?;
+
+        let endpoints = vec![endpoint1, endpoint2];
+
+        channel = Channel::balance_list(endpoints.into_iter());
+    } else if addrs.len() == 2 && server_addrs.len() == 2 {
+        let endpoint1 = Endpoint::from_shared(format!("https://{}", server_addrs[0]).to_string()).expect("Invalid URL")
+            .local_address(Some(addrs[0]))
+            .timeout(Duration::from_secs(5))
+            .tls_config(tls.clone())?;
+        
+        let endpoint2 = Endpoint::from_shared(format!("https://{}", server_addrs[1]).to_string()).expect("Invalid URL")
+            .local_address(Some(addrs[1]))
+            .timeout(Duration::from_secs(5))
+            .tls_config(tls.clone())?;
+
+        let endpoints = vec![endpoint1, endpoint2];
+
+        channel = Channel::balance_list(endpoints.into_iter());
+    } else {
+        channel = Channel::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
         .tls_config(tls)?
         .connect()
         .await?;
+
+    }
+
+    
 
     let start = Instant::now();
         
@@ -111,13 +166,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("File downloaded successfully!");
 
+    } else if proto.as_str() == "fileexchange" {
+        let mut client = FileServiceClient::new(channel);
+
+        for i in 0..n {
+
+            sleep(Duration::from_millis(dur)).await;
+
+            let s = Instant::now();
+            // exchange a file
+            if cfg!(target_os = "windows") {
+                file_path = "./swift_file_examples/big.txt".to_string();
+            }
+            let mut file = File::open(file_path.clone()).await?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer).await?;
+
+            let request = tonic::Request::new(FileData {
+                filename: "uploaded_example".into(),
+                data: buffer,
+            });
+
+            let response = client.exchange_file(request).await?.into_inner();
+
+            let mut new_file = File::create("downloaded_example").await?;
+            new_file.write_all(&response.data).await?;
+
+            println!("File exchanged successfully!");
+
+            let d = s.elapsed();
+            let c = start.elapsed();
+            println!("Time elapsed: ({:?} ,{:?})", c.as_secs_f64(),d.as_secs_f64());
+        }
+
     } else {
         panic!("Invalid protoBuf");
     }
 
         
     let duration = start.elapsed();
-    println!("Time elapsed: {:?}", duration.as_secs_f64());
+    println!("Total time elapsed: {:?}", duration.as_secs_f64());
 
     Ok(())
 }

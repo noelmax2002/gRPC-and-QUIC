@@ -14,6 +14,8 @@ use tokio::time::Duration;
 use std::pin::Pin;
 use docopt::Docopt;
 use tokio::io::ErrorKind;
+use std::net::SocketAddr;
+
 
 
 #[cfg(feature = "tls")]
@@ -42,7 +44,7 @@ const USAGE: &'static str = "
 Usage: server [options]
 
 Options:
-    -s --sip ADDRESS        Server IPv4 address and port [default: 127.0.0.1:4433].
+    -s --sip ADDRESS ...       Server IPv4 address and port [default: 127.0.0.1:4433].
     --server-pem PATH       Path to server.pem [default: ./HTTP2/tls/server.pem].
     --server-key PATH       Path to server.key [default: ./HTTP2/tls/server.key].
     -p --proto PROTOCOL     ProtoBuf to use [default: helloworld].
@@ -74,11 +76,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
     let proto = args.get_str("--proto").to_string();
-    let addr = args.get_str("--sip").parse().unwrap();
+    
     let mut server_pem = args.get_str("--server-pem").to_string();
     let mut server_key = args.get_str("--server-key").to_string();
 
+    let mut server_addrs: Vec<SocketAddr> = args
+        .get_vec("--sip")
+        .into_iter()
+        .map(|addr| addr.parse().expect("Invalid IP address"))
+        .collect();
+
     
+    let addr = server_addrs[0];
+    
+
     if cfg!(target_os = "windows") {
         server_pem = "./src/HTTP2/tls/server.pem".to_string();
         server_key = "./src/HTTP2/tls/server.key".to_string();
@@ -87,35 +98,77 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let key = std::fs::read_to_string(server_key).expect("Failed to read server.key");
     let identity = Identity::from_pem(cert, key);
 
+    if server_addrs.len() == 1 {
 
-    // Create tonic server builder.
-    if proto == "helloworld" {
-        let greeter = MyGreeter::default(); //Define the gRPC service.
-        Server::builder()
-        .tls_config(ServerTlsConfig::new().identity(identity))?
-        .add_service(GreeterServer::new(greeter))
-        .serve(addr)
-        .await?;
-        println!("GreeterServer listening on {}", addr);
-    } else if proto == "echo" {
-        let echo = EchoServer {};
-        Server::builder()
-        .tls_config(ServerTlsConfig::new().identity(identity))?
-        .add_service(echo::echo_server::EchoServer::new(echo))
-        .serve(addr)
-        .await?;
-        println!("EchoServer listening on {}", addr);
+        // Create tonic server builder.
+        if proto == "helloworld" {
+            let greeter = MyGreeter::default(); //Define the gRPC service.
+            Server::builder()
+            .tls_config(ServerTlsConfig::new().identity(identity))?
+            .add_service(GreeterServer::new(greeter))
+            .serve(addr)
+            .await?;
+            println!("GreeterServer listening on {}", addr);
+        } else if proto == "echo" {
+            let echo = EchoServer {};
+            Server::builder()
+            .tls_config(ServerTlsConfig::new().identity(identity))?
+            .add_service(echo::echo_server::EchoServer::new(echo))
+            .serve(addr)
+            .await?;
+            println!("EchoServer listening on {}", addr);
 
-    } else if proto == "filetransfer" {
-        let file_service = MyFileService::default();
-        Server::builder()
-        .tls_config(ServerTlsConfig::new().identity(identity))?
-        .add_service(FileServiceServer::new(file_service))
-        .serve(addr)
-        .await?;
-        println!("FileTransferServer listening on {}", addr);
+        } else if proto == "filetransfer" || proto == "fileexchange" {
+            let file_service = MyFileService::default();
+            Server::builder()
+            .tls_config(ServerTlsConfig::new().identity(identity))?
+            .add_service(FileServiceServer::new(file_service))
+            .serve(addr)
+            .await?;
+            println!("FileTransferServer listening on {}", addr);
+        } else {
+            panic!("Unknown protocol: {:?}", proto);
+        }
     } else {
-        panic!("Unknown protocol: {:?}", proto);
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        for addr in &server_addrs {
+            let serve;
+            let tx = tx.clone();
+            if proto == "helloworld" {
+                let greeter = MyGreeter::default(); //Define the gRPC service.
+                serve = Server::builder()
+                .tls_config(ServerTlsConfig::new().identity(identity.clone()))?
+                .add_service(GreeterServer::new(greeter))
+                .serve(*addr);
+                println!("GreeterServer listening on {}", addr);
+            } else if proto == "echo" {
+                let echo = EchoServer {};
+                serve = Server::builder()
+                .tls_config(ServerTlsConfig::new().identity(identity.clone()))?
+                .add_service(echo::echo_server::EchoServer::new(echo))
+                .serve(*addr);
+                println!("EchoServer listening on {}", addr);
+
+            } else if proto == "filetransfer" || proto == "fileexchange" {
+                let file_service = MyFileService::default();
+                serve = Server::builder()
+                .tls_config(ServerTlsConfig::new().identity(identity.clone()))?
+                .add_service(FileServiceServer::new(file_service))
+                .serve(*addr);
+                println!("FileTransferServer listening on {}", addr);
+            } else {
+                panic!("Unknown protocol: {:?}", proto);
+            }
+
+            tokio::spawn(async move {
+                if let Err(e) = serve.await {
+                    eprintln!("Error = {:?}", e);
+                }
+    
+                tx.send(()).unwrap();
+            });
+        }   
+        rx.recv().await;
     }
 
     Ok(())
@@ -271,6 +324,22 @@ impl FileService for MyFileService {
         let mut file = File::open(&filename).await.map_err(|e| Status::not_found(e.to_string()))?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await.map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(FileData { filename, data: buffer }))
+    }
+
+    async fn exchange_file(
+        &self,
+        request: Request<FileData>,
+    ) -> std::result::Result<Response<FileData>, Status> {
+        let file = request.into_inner();
+        let mut new_file = File::create(file.filename.clone()).await.map_err(|e| Status::internal(e.to_string()))?;
+        new_file.write_all(&file.data).await.map_err(|e| Status::internal(e.to_string()))?;
+
+        let filename = file.filename;
+        let mut file_down = File::open(&filename).await.map_err(|e| Status::not_found(e.to_string()))?;
+        let mut buffer = Vec::new();
+        file_down.read_to_end(&mut buffer).await.map_err(|e| Status::internal(e.to_string()))?;
 
         Ok(Response::new(FileData { filename, data: buffer }))
     }
