@@ -25,6 +25,10 @@ use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
 use std::{error::Error, io::ErrorKind, time::Duration};
 use tokio::time::sleep;
 
+use ring::rand::*;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -46,16 +50,18 @@ const USAGE: &'static str = "
 Usage: server [options]
 
 Options:
-    -s --sip ADDRESS        Server IPv4 address and port [default: 127.0.0.1:4433].
-    --nocapture             Do not capture the output of the test.
-    -p --proto PROTOCOL     ProtoBuf to use [default: helloworld].
-    --timeout TIMEOUT       Idle timeout of the QUIC connection in milliseconds [default: 5000].
-    -e --early              Enable 0-RTT.
-    --poll-timeout TIMOUT   Timeout for polling the event loop in milliseconds [default: 1].
-    --cert-file PATH        Path to the certificate file [default: cert.crt].
-    --key-file PATH         Path to the private key file [default: cert.key].
-    --multipath             Enable multipath.
-    -t --token              Enable stateless retry token.
+    -s --sip ADDRESS            Server IPv4 address and port [default: 127.0.0.1:4433].
+    --nocapture                 Do not capture the output of the test.
+    -p --proto PROTOCOL         ProtoBuf to use [default: helloworld].
+    --timeout TIMEOUT           Idle timeout of the QUIC connection in milliseconds [default: 5000].
+    -e --early                  Enable 0-RTT.
+    --poll-timeout TIMOUT       Timeout for polling the event loop in milliseconds [default: 1].
+    --cert-file PATH            Path to the certificate file [default: cert.crt].
+    --key-file PATH             Path to the private key file [default: cert.key].
+    --multipath                 Enable multipath.
+    --scheduler SCHEDULER       Choose the scheduler to use [default: lrtt].
+    --rcvd-threshold TIMEOUT    Timeout for the rcvd threshold in milliseconds [default: 1000].
+    -t --token                  Enable stateless retry token.
 ";
 
 #[derive(Default)]
@@ -148,6 +154,8 @@ impl Io {
         let cert_file = args.get_str("--cert-file").to_string();
         let key_file = args.get_str("--key-file").to_string();
         let multipath = args.get_bool("--multipath");
+        let scheduler = args.get_str("--scheduler");
+        let rcvd_threshold = args.get_str("--rcvd-threshold").parse::<u64>().unwrap();
        
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
@@ -222,6 +230,10 @@ impl Io {
         //let mut received_buffer = Vec::new();
         let mut continue_write = false;
 
+        let app_data_start = std::time::Instant::now();
+        let mut rcvd_time_map: HashMap<std::net::SocketAddr, Duration>  = HashMap::new();
+
+
         loop {
             // Find the shorter timeout from all the active connections.
             //
@@ -283,6 +295,8 @@ impl Io {
                 };
 
                 debug!("got {} bytes from {:?}", len, from);
+
+                rcvd_time_map.insert(from, app_data_start.elapsed());
 
                 let pkt_buf = &mut buf[..len];
 
@@ -795,6 +809,7 @@ impl Io {
                     debug!("{} written {} bytes", client.conn.trace_id(), write);
                 }
             }*/
+            /*
             continue_write = false;
             for client in clients.values_mut() {
                 // Reduce max_send_burst by 25% if loss is increasing more than 0.1%.
@@ -817,11 +832,11 @@ impl Io {
 
                 while total_write < max_send_burst {
                     let res = match dst_info {
-                        Some(info) => client.conn.send_on_path(
+                        Some(info) => {println!("Sending on path from {:?} to {:?}", info.from, info.to);   client.conn.send_on_path(
                             &mut out[total_write..max_send_burst],
                             Some(info.from),
                             Some(info.to),
-                        ),
+                        )},
                         None =>
                             client.conn.send(&mut out[total_write..max_send_burst]),
                     };
@@ -887,6 +902,63 @@ impl Io {
                     continue_write = true;
                     break;
                 }
+            }*/
+
+
+            for client in clients.values_mut() {
+                let conn = client.conn.as_mut();
+
+                // Determine in which order we are going to iterate over paths.
+                //let scheduled_tuples = lowest_latency_scheduler(&conn);
+                let mut scheduled_tuples = Self::scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
+
+                // Generate outgoing QUIC packets and send them on the UDP socket, until
+                // quiche reports that there are no more packets to be sent.
+                for (local_addr, peer_addr) in scheduled_tuples {
+                    info!(
+                        "sending on path ({}, {})",
+                        local_addr, peer_addr
+                    );
+                    loop {
+                        let (write, send_info) = match conn.send_on_path(
+                            &mut out,
+                            Some(local_addr),
+                            Some(peer_addr),
+                        ) {
+                            Ok(v) => v,
+
+                            Err(quiche::Error::Done) => {
+                                //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                break;
+                            },
+
+                            Err(e) => {
+                                info!(
+                                    "{} -> {}: send failed: {:?}",
+                                    local_addr, peer_addr, e
+                                );
+
+                                conn.close(false, 0x1, b"fail").ok();
+                                break;
+                            },
+                        };
+
+                        if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                            if e.kind() == std::io::ErrorKind::WouldBlock {
+                                println!(
+                                    "{} -> {}: send() would block",
+                                    local_addr,
+                                    send_info.to
+                                );
+                                break;
+                            }
+
+                            panic!("send() failed: {:?}", e);
+                        }
+                        info!("{} -> {}: written {}", local_addr, send_info.to, write);
+                    }
+
+                }
             }
 
 
@@ -918,6 +990,52 @@ impl Io {
             });
 
         }
+    }
+
+    /// Generate a ordered list of 4-tuples on which the host should send packets,
+    /// following a lowest-latency scheduling.
+    fn scheduler_fn(
+        conn: &quiche::Connection,
+        scheduler: &str,
+        rcvd_time_map: &HashMap<std::net::SocketAddr, Duration>,
+        start: &std::time::Instant,
+        threshold: u64,
+    ) -> impl Iterator<Item = (std::net::SocketAddr, std::net::SocketAddr)> {
+        if scheduler == "lrtt" {
+            //lowest-rtt-first scheduler
+            use itertools::Itertools;
+            let mut paths: Vec<_> = conn
+                .path_stats()
+                .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+                .filter(|p| {
+                    if let Some(time) = rcvd_time_map.get(&p.peer_addr) {
+                        let n = start.elapsed() - *time;
+                        info!("path {:?} with threshold : {:?}", p.path_id, n);
+                        n <= std::time::Duration::from_millis(threshold)
+                    } else {
+                        true
+                    }
+                })
+                .sorted_by_key(|p| {info!("path {:?} with RTT : {:?}", p, p.rtt); p.rtt})
+                .map(|p| (p.local_addr, p.peer_addr))
+                .collect();
+
+            paths.into_iter()
+        } else {
+            //random scheduler
+            use itertools::Itertools;
+
+            let mut paths: Vec<_> = conn
+                .path_stats()
+                .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+                .map(|p| {info!("path {:?} with RTT : {:?}", p.path_id, p.rtt); (p.local_addr, p.peer_addr)})
+                .collect();   
+
+            paths.shuffle(&mut thread_rng());
+
+            paths.into_iter()
+        }
+        
     }
 
     fn handle_path_events(client: &mut QClient) {

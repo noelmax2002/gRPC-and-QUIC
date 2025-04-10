@@ -67,6 +67,8 @@ Options:
     --scheduler SCHEDULER           Choose the scheduler to use [default: lrtt].
     -n --num NUM                    Number of requests to send [default: 10].
     -t --time DURATION              Duration between each request [default: 500].
+    --ack-eliciting-timer TIMEOUT    Timeout for the ack elicting timer in milliseconds [default: 100].
+    --rcvd-threshold TIMEOUT        Timeout for the rcvd threshold in milliseconds [default: 1000].
     --nocapture                     Do not capture the output of the test.
     
 ";
@@ -303,6 +305,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
     let poll_timeout = args.get_str("--poll-timeout").parse::<u64>().unwrap();
     let multipath = args.get_bool("--multipath");
     let scheduler = args.get_str("--scheduler");
+    let ack_eliciting_timer = args.get_str("--ack-eliciting-timer").parse::<u64>().unwrap();
+    let rcvd_threshold = args.get_str("--rcvd-threshold").parse::<u64>().unwrap();
     
     loop { 
         // ----- QUIC Connection -----
@@ -444,6 +448,14 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
         let app_data_start = std::time::Instant::now();
 
+        let mut send_time_map: HashMap<std::net::SocketAddr, Duration>  = HashMap::new();
+        let mut rcvd_time_map: HashMap<std::net::SocketAddr, Duration>  = HashMap::new();
+
+        for addr in addrs.iter() {
+            send_time_map.insert(*addr, app_data_start.elapsed());
+            rcvd_time_map.insert(*addr, app_data_start.elapsed());
+        }
+
         let mut probed_paths = 0;
 
         let mut scid_sent = false;
@@ -507,6 +519,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             continue 'read;
                         },
                     };
+
+                    rcvd_time_map.insert(local_addr, app_data_start.elapsed());
 
                     info!("processed {} bytes", read);
                 }
@@ -725,7 +739,17 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
                 }
             }
-            
+
+            // force frames to be sent (if nothing then its PING frames) - to get correct RTT-measurements on all paths
+            if(conn.is_established()){
+                for (addr, time) in send_time_map.iter(){
+                    if app_data_start.elapsed() - *time > std::time::Duration::from_millis(ack_eliciting_timer) {
+                        conn.send_ack_eliciting_on_path(*addr, peer_addr).ok();
+                    }
+                }
+            }
+
+
             if let Some(http3_conn) = &mut http3_conn {            
                 // Process HTTP/3 events.
                 loop {
@@ -914,7 +938,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
             // Determine in which order we are going to iterate over paths.
             //let scheduled_tuples = lowest_latency_scheduler(&conn);
-            let mut scheduled_tuples = scheduler_fn(&conn, scheduler);
+            let mut scheduled_tuples = scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
 
 
             // Generate outgoing QUIC packets and send them on the UDP socket, until
@@ -962,6 +986,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
                         panic!("send() failed: {:?}", e);
                     }
+
+                    send_time_map.insert(local_addr, app_data_start.elapsed());
 
                     info!("{} -> {}: written {}", local_addr, send_info.to, write);
                 }
@@ -1109,6 +1135,9 @@ pub fn generate_cid_and_reset_token<T: SecureRandom>(
 fn scheduler_fn(
     conn: &quiche::Connection,
     scheduler: &str,
+    rcvd_time_map: &HashMap<std::net::SocketAddr, Duration>,
+    start: &std::time::Instant,
+    threshold: u64,
 ) -> impl Iterator<Item = (std::net::SocketAddr, std::net::SocketAddr)> {
     if scheduler == "lrtt" {
         //lowest-rtt-first scheduler
@@ -1116,7 +1145,16 @@ fn scheduler_fn(
         let mut paths: Vec<_> = conn
             .path_stats()
             .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
-            .sorted_by_key(|p| {info!("path {:?} with RTT : {:?}", p.path_id, p.rtt); p.rtt})
+            .filter(|p| {
+                if let Some(time) = rcvd_time_map.get(&p.local_addr) {
+                    let n = start.elapsed() - *time;
+                    info!("path {:?} with threshold : {:?}", p.path_id, n);
+                    n <= std::time::Duration::from_millis(threshold)
+                } else {
+                    true
+                }
+            })
+            .sorted_by_key(|p| {info!("path {:?} with RTT : {:?}", p, p.rtt); p.rtt})
             .map(|p| (p.local_addr, p.peer_addr))
             .collect();
 
@@ -1183,14 +1221,7 @@ impl Client {
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
         //println!("Received gRPC message: {:?}", msg);
-        //println!("Size of msg : {:?}", msg.len());s
-
-        /* 
-        println!("[CLIENT] Received gRPC message of size: {:?}", msg.len());
-        let vec_to_string = String::from_utf8_lossy(msg.clone());
-        println!("{:?}", msg);
-        println!("{}", vec_to_string); 
-        */
+        //println!("Size of msg : {:?}", msg.len());
         if self.to_io.is_closed() {
             return Ok(());
         }
