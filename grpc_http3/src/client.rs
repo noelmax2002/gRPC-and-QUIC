@@ -27,6 +27,7 @@ use slab::Slab;
 use log::{trace,warn};
 use std::net::{IpAddr, Ipv4Addr};
 use quiche::{PathId, CIDSeq};
+use std::sync::Arc;
 
 use quiche::h3::NameValue;
 
@@ -34,7 +35,9 @@ use ring::rand::*;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-const MAX_DATAGRAM_SIZE: usize = 1350;
+const MAX_DATAGRAM_SIZE: usize = 1500;
+const MAX_GRPC_BUFFER_DATA_SIZE: usize = 100_001;
+const MAX_BRIDGING_BUFFER_SIZE: usize = 100_000;
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -70,7 +73,7 @@ Options:
     --ack-eliciting-timer TIMEOUT    Timeout for the ack elicting timer in milliseconds [default: 100].
     --rcvd-threshold TIMEOUT        Timeout for the rcvd threshold in milliseconds [default: 1000].
     --nocapture                     Do not capture the output of the test.
-    
+    --duplicate                     Enable duplicate on path.
 ";
 
 struct PartialRequest{
@@ -81,7 +84,6 @@ struct PartialRequest{
 
 #[tokio::main]
 async fn main() -> Result<()> {
-
     //Read from CLI to learn the server/client address.
     let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
     let mut server_addr = args.get_str("--sip").to_string();
@@ -242,7 +244,7 @@ async fn main() -> Result<()> {
         join_handle2.await?; 
 
      */
-        /* 
+        /*
         // Download a file
         let request = tonic::Request::new(FileRequest {
             filename: "uploaded_example".into(),
@@ -252,8 +254,8 @@ async fn main() -> Result<()> {
         let mut new_file = File::create("downloaded_example").await?;
         new_file.write_all(&response.data).await?;
 
-        println!("File downloaded successfully!"); 
-        */
+        println!("File downloaded successfully!"); */
+        
     } else if proto.as_str() == "fileexchange" {
         let mut client = FileServiceClient::new(channel);
 
@@ -307,10 +309,12 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
     let scheduler = args.get_str("--scheduler");
     let ack_eliciting_timer = args.get_str("--ack-eliciting-timer").parse::<u64>().unwrap();
     let rcvd_threshold = args.get_str("--rcvd-threshold").parse::<u64>().unwrap();
+    let duplicate = args.get_bool("--duplicate");
     
     loop { 
         // ----- QUIC Connection -----
         let mut buf = [0; 65535];
+        let mut grpc_buffer = [0; MAX_GRPC_BUFFER_DATA_SIZE];
         let mut out = [0; MAX_DATAGRAM_SIZE];
         let session_file = "session_file.bin";
         let mut sending_request = false;
@@ -371,13 +375,16 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
         config.set_max_idle_timeout(idle_timeout);
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
-        config.set_initial_max_data(10_000_000);
-        config.set_initial_max_stream_data_bidi_local(1_000_000);
-        config.set_initial_max_stream_data_bidi_remote(1_000_000);
-        config.set_initial_max_stream_data_uni(1_000_000);
-        config.set_initial_max_streams_bidi(100_000);
-        config.set_initial_max_streams_uni(100_000);
+        config.set_initial_max_data(100_000_000);
+        config.set_initial_max_stream_data_bidi_local(100_000_000);
+        config.set_initial_max_stream_data_bidi_remote(100_000_000);
+        config.set_initial_max_stream_data_uni(100_000_000);
+        config.set_initial_max_streams_bidi(100_000_000);
+        config.set_initial_max_streams_uni(100_000_000);
         config.set_disable_active_migration(false);
+        if duplicate {
+            config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
+        }
         if early_data {
             config.enable_early_data();
         }
@@ -388,8 +395,12 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             config.set_initial_max_path_id(0);
         }
 
-        config.set_max_connection_window(1_000_000);
-        config.set_max_stream_window(1_000_000);
+        //config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
+        /*
+        config.set_max_connection_window(10_000);
+        config.set_max_stream_window(10_000);
+        config.set_initial_congestion_window_packets(10_000);*/
+        //config.set_max_send_udp_payload_size(60_000);
 
         let mut http3_conn: Option<quiche::h3::Connection> = None;
 
@@ -461,14 +472,14 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
         let mut scid_sent = false;
         let mut new_path_probed = false;
 
-        loop {     
+        loop { 
+
             if !conn.is_in_early_data() {
                 if poll_timeout == 0 {
                     poll.poll(&mut events, conn.timeout()).unwrap();
                 }
                 poll.poll(&mut events, Some(Duration::from_millis(poll_timeout))).unwrap();
             }
-            //sleep(Duration::from_millis(1)).await;
 
             // If the event loop reported no events, it means that the timeout
             // has expired, so handle it without attempting to read packets. We
@@ -504,7 +515,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     };
 
                     info!("got {} bytes on addr {}", len, local_addr);
-
+                    
                     let recv_info = quiche::RecvInfo {
                         to: local_addr,
                         from,
@@ -523,8 +534,17 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     rcvd_time_map.insert(local_addr, app_data_start.elapsed());
 
                     info!("processed {} bytes", read);
+
+                    if conn.is_established(){
+                        let stream = conn.streams.get_mut(stream_id);
+                        if stream.is_some() {
+                            info!("Stream acks: {:?}", stream.unwrap().send.acked);
+                        }
+                    }
+
                 }
             }
+
 
             if conn.is_closed() {
                 //println!("connection closed, {:?}", conn.stats());
@@ -554,6 +574,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 //return Ok(());
             }
 
+            
             // Create a new HTTP/3 connection once the QUIC connection is established.
             if (conn.is_established() || conn.is_in_early_data()) && http3_conn.is_none() {
                 http3_conn = Some(
@@ -567,7 +588,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             if let Some(h3_conn) = &mut http3_conn {
                 loop{
                     waiting_to_be_sent.retain_mut(|request| {
-                        if !sending_request {                     
+                        if !sending_request {          
+                            //println!("sending waiting HTTP request");           
                             stream_id = match h3_conn.send_request(&mut conn, &req, false) {
                                 Ok(v) => v,
                         
@@ -581,10 +603,17 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                                     return true;
                                 },
                             };
+                            info!("Request sent on stream id {:?}", stream_id);
                         }
 
                         let body = &request.body[request.written..];
-
+                        /*
+                        println!("sending waiting HTTP data of size {:?}", body.len());
+                        let vec_to_string = String::from_utf8_lossy(&body);
+                        println!("{}", vec_to_string);
+                        */
+                        //println!("sending waiting HTTP data of size {:?}", body.len());
+                    
                         let mut end = false;
                         let len = body.len();
                         if len >= 9 && body[len - 9..len-1] == [0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00] {
@@ -601,6 +630,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                                 return false;
                             },
                         };
+                        info!("Body sent on stream id {:?}", stream_id);
                     
                         request.written += written;
                     
@@ -615,6 +645,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     
                         true
                     });
+
 
                     /*
                     let mut i = 0;
@@ -653,15 +684,51 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     
                         i += 1;
                     } */
-                        
+                    
+                    /*
+                    let mut len_received = 0; 
+                    loop {
+                        if len_received + MAX_BRIDGING_BUFFER_SIZE >= MAX_GRPC_BUFFER_DATA_SIZE {
+                            break;
+                        }
 
+                        let frame_grpc = match from_client.try_recv() {
+                            Ok(v) => {
+                                v },
+                            Err(e) => {
+                                if e == mpsc::error::TryRecvError::Empty {
+                                    tokio::task::yield_now().await; //forcing thread to yield to give time to gRPC thread
+                                    //sleep(Duration::new(0,1)).await;
+                                    //sleep(Duration::from_millis(10)).await;
+                                    break;
+                                }
+
+                                //println!("recv() failed: {:?}", e);
+                                return Ok(());
+                            },
+                        };
+                        let len = frame_grpc.len();
+                        if (len == 9 && frame_grpc == [0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00]){
+                            //this avoid strange message from gRPC that produces error in the server side 
+                            break;
+                        }
+                        if len > 0 {
+                            grpc_buffer[len_received..len_received + len].copy_from_slice(&frame_grpc);
+                            len_received += len;
+                        }
+                    }
+                    if len_received == 0{
+                        break;
+                    } 
+                    let data = &grpc_buffer[..len_received];
+
+                    */
                     let data = match from_client.try_recv() {
                         Ok(v) => {
                             v },
                         Err(e) => {
                             if e == mpsc::error::TryRecvError::Empty {
-                                sleep(Duration::from_millis(10)).await;
-                                //sleep(Duration::new(0,1)).await;
+                                tokio::task::yield_now().await; //forcing thread to yield to give time to gRPC thread
                                 break;
                             }
 
@@ -669,23 +736,26 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             return Ok(());
                         },
                     };
+                    if data.len() == 9 && data == [0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00] {
+                        //this avoid strange message from gRPC that produces error in the server side 
+                        break;
+                    }
 
                     //println!("sending HTTP request {:?}", req);
-                    //println!("sending HTTP data of size {:?}", data.len());
                     //println!("{:?}", data);
                     //let stream_id = h3_conn.send_request(&mut conn, &req, false).unwrap();
                     //println!("stream_id: {:?}", stream_id);
                     //h3_conn.send_body(&mut conn, stream_id, &data, true).unwrap();
 
-                    //println!("sending HTTP data of size {:?}", data.len());
                     if !sending_request {
+                        //println!("sending HTTP request");           
                         stream_id = match h3_conn.send_request(&mut conn, &req, false) {
                             Ok(v) => v,
                     
                             Err(quiche::h3::Error::StreamBlocked) => {
                                 info!("stream blocked");
                                 let request = PartialRequest {
-                                    body: data,
+                                    body: data.to_vec(),
                                     written: 0,
                                 };
                     
@@ -702,15 +772,24 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     }
 
                     //println!("stream_id: {:?}", stream_id);
-                    //let vec_to_string = String::from_utf8_lossy(&data);
-                    //println!("{:?}", data);
-                    //println!("{}", vec_to_string);
+                    /*
+                    println!("sending HTTP data of size {:?}", data.len());
+                    let vec_to_string = String::from_utf8_lossy(&data);
+                    println!("{:?}", data);
+                    println!("{}", vec_to_string);
+                    */
+
                     let mut end = false;
                     let len = data.len();
                     if len >= 9 && data[len - 9..len-1] == [0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00] {
                         end = true;
                     }
-
+                    /*
+                    println!("sending HTTP data of size {:?}", len);
+                    let vec_to_string = String::from_utf8_lossy(&data);
+                    println!("{}", vec_to_string);
+                    */
+                    //println!("sending HTTP data of size {:?}", data.len());
                     let written = match h3_conn.send_body(&mut conn, stream_id, &data, end) {
                         Ok(v) => v,
                 
@@ -721,10 +800,11 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             break;
                         },
                     };
+
                 
                     if written < data.len() {
                         let request = PartialRequest {
-                            body: data,
+                            body: data.to_vec(),
                             written,
                         };
                 
@@ -736,12 +816,11 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         }
                     }
 
-
                 }
             }
 
             // force frames to be sent (if nothing then its PING frames) - to get correct RTT-measurements on all paths
-            if(conn.is_established()){
+            if(conn.is_multipath_enabled() && conn.is_established()) {
                 for (addr, time) in send_time_map.iter(){
                     if app_data_start.elapsed() - *time > std::time::Duration::from_millis(ack_eliciting_timer) {
                         conn.send_ack_eliciting_on_path(*addr, peer_addr).ok();
@@ -774,7 +853,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                                     return Ok(());
                                 }
                                 to_client.send(buf[..read].to_vec()).await?;
-                                sleep(Duration::new(0,1)).await;
+                                tokio::task::yield_now().await;
+                                //sleep(Duration::new(0,1)).await;
                             }
                         },
 
@@ -815,6 +895,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     }
                 }
             }
+
 
             // Handle path events.
             while let Some((pid, qe)) = conn.path_event_next() {
@@ -943,18 +1024,360 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
             // Generate outgoing QUIC packets and send them on the UDP socket, until
             // quiche reports that there are no more packets to be sent.
-            for (local_addr, peer_addr) in scheduled_tuples {
-                let token = src_addr_to_token[&local_addr];
+            
+            if scheduler == "duplicate" {
+                let mut n = 0;
+                let mut first_offset = 0;
+                let mut second_offset = 0;
+                for (local_addr, peer_addr) in scheduled_tuples {
+                    if n == 0 {
+                        let token = src_addr_to_token[&local_addr];
+                        let socket = &sockets[token];
+                        info!(
+                            "sending on path ({}, {})",
+                            local_addr, peer_addr
+                        );
+                        let stream = conn.streams.get(stream_id);
+                        if !stream.is_none() {
+                            first_offset = stream.unwrap().send.emit_off;
+                        }
+
+                        loop {
+                            let (write, send_info) = match conn.send_on_path(
+                                &mut out,
+                                Some(local_addr),
+                                Some(peer_addr),
+                            ) {
+                                Ok(v) => v,
+
+                                Err(quiche::Error::Done) => {
+                                    //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                    break;
+                                },
+
+                                Err(e) => {
+                                    info!(
+                                        "{} -> {}: send failed: {:?}",
+                                        local_addr, peer_addr, e
+                                    );
+
+                                    conn.close(false, 0x1, b"fail").ok();
+                                    break;
+                                },
+                            };
+
+                            if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                if e.kind() == std::io::ErrorKind::WouldBlock {
+                                    println!(
+                                        "{} -> {}: send() would block",
+                                        local_addr,
+                                        send_info.to
+                                    );
+                                    break;
+                                }
+
+                                panic!("send() failed: {:?}", e);
+                            }
+
+                            send_time_map.insert(local_addr, app_data_start.elapsed());
+
+                        
+                            println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                        
+                        }
+                        n += 1;
+                    } else if n == 1 {
+                        let stream = conn.streams.get_mut(stream_id);
+                        if !stream.is_none() {
+                            second_offset = stream.unwrap().send.emit_off;
+                        }
+                        let sent: usize = (second_offset - first_offset).try_into().unwrap();
+
+                        if sent != 0 && second_offset > first_offset {
+                            //copy the data to the other path
+                            //indicate stream data to be retransmitted
+                            let stream = conn.streams.get_mut(stream_id);
+                            if !stream.is_none(){
+                                stream.unwrap().send.retransmit(first_offset, sent);
+                            }
+                            println!("Retransmitting stream data from offset {:?} to {:?}", first_offset, second_offset);
+                        } 
+                        let token = src_addr_to_token[&local_addr];
+                        let socket = &sockets[token];
+                        info!(
+                            "sending on path ({}, {})",
+                            local_addr, peer_addr
+                        );
+                
+                        loop {
+                            let (write, send_info) = match conn.send_on_path(
+                                &mut out,
+                                Some(local_addr),
+                                Some(peer_addr),
+                            ) {
+                                Ok(v) => v,
+
+                                Err(quiche::Error::Done) => {
+                                    //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                    break;
+                                },
+
+                                Err(e) => {
+                                    info!(
+                                        "{} -> {}: send failed: {:?}",
+                                        local_addr, peer_addr, e
+                                    );
+
+                                    conn.close(false, 0x1, b"fail").ok();
+                                    break;
+                                },
+                            };
+
+                            if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                if e.kind() == std::io::ErrorKind::WouldBlock {
+                                    println!(
+                                        "{} -> {}: send() would block",
+                                        local_addr,
+                                        send_info.to
+                                    );
+                                    break;
+                                }
+
+                                panic!("send() failed: {:?}", e);
+                            }
+
+                            send_time_map.insert(local_addr, app_data_start.elapsed());
+
+                        
+                            println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                        }
+                    }
+
+                }
+
+
+            } else if duplicate {
+
+                let mut n = 0;
+                let mut first_offset = 0;
+                let mut second_offset = 0;
+
+                let mut scheduled_tuples_duplicate = scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
+
+                let (local_addr1, peer_addr1) = match scheduled_tuples_duplicate.next() {
+                    Some((local_addr, peer_addr)) => (local_addr, peer_addr),
+                    None => {
+                        break
+                    },
+                };
+                let (local_addr2, peer_addr2) = match scheduled_tuples_duplicate.next() {
+                    Some((local_addr, peer_addr)) => (local_addr, peer_addr),
+                    None => {
+                        (local_addr1, peer_addr1)
+                    },
+                };
+
+                for (local_addr, peer_addr) in scheduled_tuples {
+                    let token = src_addr_to_token[&local_addr];
+                    let socket = &sockets[token];
+                    info!(
+                        "sending on path ({}, {})",
+                        local_addr, peer_addr
+                    );
+                    loop {
+                        let stream = conn.streams.get(stream_id);
+                        if !stream.is_none() {
+                            first_offset = stream.unwrap().send.emit_off;
+                        }
+
+                        let (write, send_info) = match conn.send_on_path(
+                            &mut out,
+                            Some(local_addr),
+                            Some(peer_addr),
+                        ) {
+                            Ok(v) => v,
+    
+                            Err(quiche::Error::Done) => {
+                                //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                break;
+                            },
+    
+                            Err(e) => {
+                                info!(
+                                    "{} -> {}: send failed: {:?}",
+                                    local_addr, peer_addr, e
+                                );
+    
+                                conn.close(false, 0x1, b"fail").ok();
+                                break;
+                            },
+                        };
+    
+                        if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                            if e.kind() == std::io::ErrorKind::WouldBlock {
+                                println!(
+                                    "{} -> {}: send() would block",
+                                    local_addr,
+                                    send_info.to
+                                );
+                                break;
+                            }
+    
+                            panic!("send() failed: {:?}", e);
+                        }
+    
+                        send_time_map.insert(local_addr, app_data_start.elapsed());
+    
+                        //println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                        
+                        // DUPLICATE ON PATH 
+                        let stream = conn.streams.get_mut(stream_id);
+                        if !stream.is_none() {
+                            second_offset = stream.unwrap().send.emit_off;
+                        }
+                        let sent: usize = (second_offset - first_offset).try_into().unwrap();
+                        //println!("Number of active paths = {:?}", conn.paths.count_active_paths());
+                        if conn.paths.count_active_paths() > 1 && sent != 0 && second_offset > first_offset {
+                            //indicate stream data to be retransmitted and flushable
+                            /*
+                            let stream = conn.streams.get_mut(stream_id);
+                            if !stream.is_none(){
+                                stream.unwrap().send.retransmit(first_offset, sent);
+                            }*/
+                            //println!("Retransmitting stream data from offset {:?} to {:?}", first_offset, second_offset);
+
+                            let stream = match conn.streams.get_mut(stream_id) {
+                                Some(v) => v,
+    
+                                None => continue,
+                            };
+    
+                            let was_flushable = stream.is_flushable();
+        
+                            stream.send.retransmit(first_offset, sent);
+    
+                            // If the stream is now flushable push it to the
+                            // flushable queue, but only if it wasn't already
+                            // queued.
+                            //
+                            // Consider the stream flushable also when we are
+                            // sending a zero-length frame that has the fin flag
+                            // set.
+                            if stream.is_flushable() && !was_flushable
+                            {
+                                let priority_key = Arc::clone(&stream.priority_key);
+                                conn.streams.insert_flushable(&priority_key);
+                            }
+                             //needed ? 
+                            /*
+                            self.stream_retrans_bytes += length as u64;
+                            p.stream_retrans_bytes += length as u64;
+    
+                            self.retrans_count += 1;
+                            p.retrans_count += 1;
+                            */
+                            let laddr = match n {
+                                0 => local_addr2,
+                                1 => local_addr1,
+                                _ => unreachable!(),
+                            };
+                            let paddr = match n {
+                                0 => peer_addr2,
+                                1 => peer_addr1,
+                                _ => unreachable!(),
+                            };
+    
+                            info!(
+                                "sending duplicate on path ({}, {})",
+                                laddr, paddr
+                            );
+                            
+                            let (write, send_info) = match conn.send_on_path(
+                                &mut out,
+                                Some(laddr),
+                                Some(paddr),
+                            ) {
+                                Ok(v) => v,
+        
+                                Err(quiche::Error::Done) => {println!{"Nothing left to write for path {:?}", laddr}; break},
+        
+                                Err(e) => {
+                                    info!(
+                                        "{} -> {}: send failed: {:?}",
+                                        local_addr, peer_addr, e
+                                    );
+        
+                                    conn.close(false, 0x1, b"fail").ok();
+                                    break;
+                                },
+                            };
+        
+                            if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                if e.kind() == std::io::ErrorKind::WouldBlock {
+                                    println!(
+                                        "{} -> {}: send() would block",
+                                        laddr,
+                                        send_info.to
+                                    );
+                                    break;
+                                }
+        
+                                panic!("send() failed: {:?}", e);
+                            }
+    
+                            send_time_map.insert(laddr, app_data_start.elapsed());
+        
+                            //println!("{} -> {}: duplicate written {}", laddr, send_info.to, write);
+                            
+                        }
+                        
+                        
+
+                    }
+
+                    n += 1;
+                }
+
+
+                /*
+                let mut n = 1;
+                let mut first_offset = 0;
+                let mut second_offset = 0;
+                let (local_addr1, peer_addr1) = match scheduled_tuples.nth(0) {
+                    Some((local_addr, peer_addr)) => (local_addr, peer_addr),
+                    None => {
+                        break
+                    },
+                };
+                let (local_addr2, peer_addr2) = match scheduled_tuples.nth(0) {
+                    Some((local_addr, peer_addr)) => (local_addr, peer_addr),
+                    None => {
+                        n = 0; 
+                        (local_addr1, peer_addr1)
+                    },
+                };
+                
+                let token = src_addr_to_token[&local_addr1];
                 let socket = &sockets[token];
                 info!(
                     "sending on path ({}, {})",
-                    local_addr, peer_addr
+                    local_addr1, peer_addr1
                 );
+
+                let token2 = src_addr_to_token[&local_addr2];
+                let socket2 = &sockets[token2];
+                
+
                 loop {
+                    let stream = conn.streams.get(stream_id);
+                    if !stream.is_none() {
+                        first_offset = stream.unwrap().send.emit_off;
+                    }
+
                     let (write, send_info) = match conn.send_on_path(
                         &mut out,
-                        Some(local_addr),
-                        Some(peer_addr),
+                        Some(local_addr1),
+                        Some(peer_addr1),
                     ) {
                         Ok(v) => v,
 
@@ -978,7 +1401,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         if e.kind() == std::io::ErrorKind::WouldBlock {
                             println!(
                                 "{} -> {}: send() would block",
-                                local_addr,
+                                local_addr1,
                                 send_info.to
                             );
                             break;
@@ -987,9 +1410,132 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         panic!("send() failed: {:?}", e);
                     }
 
-                    send_time_map.insert(local_addr, app_data_start.elapsed());
+                    send_time_map.insert(local_addr1, app_data_start.elapsed());
 
-                    info!("{} -> {}: written {}", local_addr, send_info.to, write);
+                
+                    println!("{} -> {}: written {}", local_addr1, send_info.to, write);
+                
+                    if n == 1 {
+                        let stream = conn.streams.get_mut(stream_id);
+                        if !stream.is_none() {
+                            second_offset = stream.unwrap().send.emit_off;
+                        }
+                        let sent: usize = (second_offset - first_offset).try_into().unwrap();
+
+                        if sent != 0 && second_offset > first_offset {
+                            //copy the data to the other path
+                            //indicate stream data to be retransmitted
+                            let stream = conn.streams.get_mut(stream_id);
+                            if !stream.is_none(){
+                                stream.unwrap().send.retransmit(first_offset, sent);
+                            }
+                            println!("Retransmitting stream data from offset {:?} to {:?}", first_offset, second_offset);
+                        } 
+                        
+                        info!(
+                            "sending on path ({}, {})",
+                            local_addr, peer_addr
+                        );
+                
+                        let (write, send_info) = match conn.send_on_path(
+                            &mut out,
+                            Some(local_addr2),
+                            Some(peer_addr2),
+                        ) {
+                            Ok(v) => v,
+
+                            Err(quiche::Error::Done) => {
+                                //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                break;
+                            },
+
+                            Err(e) => {
+                                info!(
+                                    "{} -> {}: send failed: {:?}",
+                                    local_addr2, peer_addr2, e
+                                );
+
+                                conn.close(false, 0x1, b"fail").ok();
+                                break;
+                            },
+                        };
+
+                        if let Err(e) = socket2.send_to(&out[..write], send_info.to) {
+                            if e.kind() == std::io::ErrorKind::WouldBlock {
+                                println!(
+                                    "{} -> {}: send() would block",
+                                    local_addr2,
+                                    send_info.to
+                                );
+                                break;
+                            }
+
+                            panic!("send() failed: {:?}", e);
+                        }
+
+                        send_time_map.insert(local_addr2, app_data_start.elapsed());
+
+                    
+                        println!("{} -> {}: written {}", local_addr2, send_info.to, write);  
+                    }
+                    
+                }*/
+            
+            } else {
+                for (local_addr, peer_addr) in scheduled_tuples {
+                    let token = src_addr_to_token[&local_addr];
+                    let socket = &sockets[token];
+                    info!(
+                        "sending on path ({}, {})",
+                        local_addr, peer_addr
+                    );
+                    loop {
+                        let (write, send_info) = match conn.send_on_path(
+                            &mut out,
+                            Some(local_addr),
+                            Some(peer_addr),
+                        ) {
+                            Ok(v) => v,
+    
+                            Err(quiche::Error::Done) => {
+                                //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                break;
+                            },
+    
+                            Err(e) => {
+                                info!(
+                                    "{} -> {}: send failed: {:?}",
+                                    local_addr, peer_addr, e
+                                );
+    
+                                conn.close(false, 0x1, b"fail").ok();
+                                break;
+                            },
+                        };
+                        
+                        /*
+                        println!("Sending quic packet of size : {:?}", write);
+                        let vec_to_string = String::from_utf8_lossy(&out[..write]);
+                        println!("{}", vec_to_string);
+                        */
+
+                        if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                            if e.kind() == std::io::ErrorKind::WouldBlock {
+                                println!(
+                                    "{} -> {}: send() would block",
+                                    local_addr,
+                                    send_info.to
+                                );
+                                break;
+                            }
+    
+                            panic!("send() failed: {:?}", e);
+                        }
+    
+                        send_time_map.insert(local_addr, app_data_start.elapsed());
+    
+                        println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                    }
                 }
             }
     
@@ -1051,6 +1597,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 }
                 //return Ok(());
             }
+
         }
         fs::remove_file("./session_file.bin").await?;
     }
@@ -1149,13 +1696,26 @@ fn scheduler_fn(
                 if let Some(time) = rcvd_time_map.get(&p.local_addr) {
                     let n = start.elapsed() - *time;
                     info!("path {:?} with threshold : {:?}", p.path_id, n);
+                    if n > std::time::Duration::from_millis(threshold) {
+                        info!("path {:?} with threshold : {:?}", p.path_id, n);
+                    }
+
                     n <= std::time::Duration::from_millis(threshold)
                 } else {
                     true
                 }
             })
-            .sorted_by_key(|p| {info!("path {:?} with RTT : {:?}", p, p.rtt); p.rtt})
+            .sorted_by_key(|p| {info!("---"); info!("path {:?} with RTT : {:?}", p.local_addr, p.rtt); p.rtt})
             .map(|p| (p.local_addr, p.peer_addr))
+            .collect();
+
+        paths.into_iter()
+    } else if scheduler == "normal" {
+        use itertools::Itertools;
+        let mut paths: Vec<_> = conn
+            .path_stats()
+            .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+            .map(|p| {info!("path : {:?}", p); (p.local_addr, p.peer_addr)})
             .collect();
 
         paths.into_iter()
@@ -1187,7 +1747,7 @@ pub struct Client {
 impl Client {
     // Handle the communication between Quic (synchronous) thread and gRPC (asynchronous) thread.
     pub async fn run(&mut self) -> Result<()> {
-        let mut buf = [0u8; 1500];
+        let mut buf = [0u8; MAX_BRIDGING_BUFFER_SIZE];
         loop {
             tokio::select! {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
@@ -1208,12 +1768,15 @@ impl Client {
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("Received IO message: {:?}", msg);
+        //println!("[CLIENT] Received IO message of size: {:?}", msg.len());
+
         /* 
         println!("[CLIENT] Received IO message of size: {:?}", msg.len());
         let vec_to_string = String::from_utf8_lossy(&msg);
         println!("{:?}", msg);
         println!("{}", vec_to_string);
         */
+
         self.stream.write(&msg).await?;
 
         Ok(())
@@ -1222,6 +1785,7 @@ impl Client {
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
         //println!("Received gRPC message: {:?}", msg);
         //println!("Size of msg : {:?}", msg.len());
+        //println!("Received gRPC msg of size : {:?}", msg.len());
         if self.to_io.is_closed() {
             return Ok(());
         }

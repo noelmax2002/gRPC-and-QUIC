@@ -24,6 +24,8 @@ use docopt::Docopt;
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
 use std::{error::Error, io::ErrorKind, time::Duration};
 use tokio::time::sleep;
+use tokio::time::Instant;
+use std::sync::Arc;
 
 use ring::rand::*;
 use rand::seq::SliceRandom;
@@ -62,6 +64,8 @@ Options:
     --scheduler SCHEDULER       Choose the scheduler to use [default: lrtt].
     --rcvd-threshold TIMEOUT    Timeout for the rcvd threshold in milliseconds [default: 1000].
     -t --token                  Enable stateless retry token.
+    --max-bidi-remote SIZE      Max stream data for remote [default: 100000].
+    --duplicate                 Enable duplicate on path.
 ";
 
 #[derive(Default)]
@@ -83,7 +87,9 @@ impl Greeter for MyGreeter {
     }
 }
 
-const MAX_DATAGRAM_SIZE: usize = 1350;
+
+const MAX_DATAGRAM_SIZE: usize = 1500;
+const MAX_BRIDGING_BUFFER_SIZE: usize = 100_000;
 const MAX_BUF_SIZE: usize = 65507;
 pub type ClientId = u64;
 
@@ -147,7 +153,7 @@ impl Io {
         let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
 
         let server_addr = args.get_str("--sip").to_string();
-        let idel_timeout = args.get_str("--timeout").parse::<u64>().unwrap();
+        let idle_timeout = args.get_str("--timeout").parse::<u64>().unwrap();
         let early_data = args.get_bool("--early");
         let stateless_retry = args.get_bool("--token");
         let poll_timeout = args.get_str("--poll-timeout").parse::<u64>().unwrap();
@@ -156,7 +162,9 @@ impl Io {
         let multipath = args.get_bool("--multipath");
         let scheduler = args.get_str("--scheduler");
         let rcvd_threshold = args.get_str("--rcvd-threshold").parse::<u64>().unwrap();
-       
+        let duplicate = args.get_bool("--duplicate");
+        let max_bidi_remote = args.get_str("--max-bidi-remote").parse::<u64>().unwrap();
+
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
         poll.registry()
@@ -188,16 +196,19 @@ impl Io {
             .unwrap();
 
 
-        config.set_max_idle_timeout(idel_timeout);
+        config.set_max_idle_timeout(idle_timeout);
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_initial_max_data(10_000_000_000);
-        config.set_initial_max_stream_data_bidi_local(1_000);
-        config.set_initial_max_stream_data_bidi_remote(1_000);
-        config.set_initial_max_stream_data_uni(1_000);
+        config.set_initial_max_stream_data_bidi_local(10_000); //100_000_000
+        config.set_initial_max_stream_data_bidi_remote(max_bidi_remote); //this parameter improves the performance
+        config.set_initial_max_stream_data_uni(1000);
         config.set_initial_max_streams_bidi(100);
         config.set_initial_max_streams_uni(100);
         config.set_disable_active_migration(false);
+        if duplicate {
+            config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
+        }
         if early_data {
             println!("Enabling 0-RTT");
             config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
@@ -208,8 +219,18 @@ impl Io {
         } else {
             config.set_initial_max_path_id(0);
         }
+        /*
         config.set_max_connection_window(1_000_000);
         config.set_max_stream_window(1_000_000);
+        config.set_max_send_udp_payload_size(60_000);*/
+
+        //config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
+        /*
+        config.set_max_connection_window(10_000); 
+        config.set_max_stream_window(10_000); 
+        config.set_initial_congestion_window_packets(10_000);
+        */
+        //config.set_max_send_udp_payload_size(60_000);
        
         let h3_config = quiche::h3::Config::new().unwrap();
 
@@ -232,7 +253,6 @@ impl Io {
 
         let app_data_start = std::time::Instant::now();
         let mut rcvd_time_map: HashMap<std::net::SocketAddr, Duration>  = HashMap::new();
-
 
         loop {
             // Find the shorter timeout from all the active connections.
@@ -531,18 +551,21 @@ impl Io {
                                 id: client.client_id.clone(),
                             };
             
+
                             // Let the client run on its own.
                             tokio::spawn(async move {
                                 new_client.run().await.unwrap();
                             });
-                            //sleep(Duration::from_millis(10)).await;
-                            sleep(Duration::new(0,1)).await;
+                            //sleep(Duration::new(0,1)).await;
+                            tokio::task::yield_now().await;
             
                             // Notify gRPC of the new client.
                             self.to_grpc.send(Ok(from_client))?;
-            
+
                             self.clients_tx.insert(client.client_id.clone(), tx);
                             self.clients_tx.get_mut(&client.client_id.clone()).unwrap()
+
+
                         }
                     };
                     
@@ -626,7 +649,8 @@ impl Io {
                                         }
                                     }
                                    //sleep(Duration::from_millis(1)).await;
-                                    sleep(Duration::new(0,1)).await;
+                                    //sleep(Duration::new(0,1)).await;
+                                    tokio::task::yield_now().await;
 
                                 }
                                 //client.conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0).unwrap();
@@ -914,51 +938,349 @@ impl Io {
 
                 // Generate outgoing QUIC packets and send them on the UDP socket, until
                 // quiche reports that there are no more packets to be sent.
-                for (local_addr, peer_addr) in scheduled_tuples {
-                    info!(
-                        "sending on path ({}, {})",
-                        local_addr, peer_addr
-                    );
-                    loop {
-                        let (write, send_info) = match conn.send_on_path(
-                            &mut out,
-                            Some(local_addr),
-                            Some(peer_addr),
-                        ) {
-                            Ok(v) => v,
-
-                            Err(quiche::Error::Done) => {
-                                //println!("{} -> {}: done writing", local_addr, peer_addr);
-                                break;
-                            },
-
-                            Err(e) => {
-                                info!(
-                                    "{} -> {}: send failed: {:?}",
-                                    local_addr, peer_addr, e
-                                );
-
-                                conn.close(false, 0x1, b"fail").ok();
-                                break;
-                            },
-                        };
-
-                        if let Err(e) = socket.send_to(&out[..write], send_info.to) {
-                            if e.kind() == std::io::ErrorKind::WouldBlock {
-                                println!(
-                                    "{} -> {}: send() would block",
-                                    local_addr,
-                                    send_info.to
-                                );
-                                break;
+                if scheduler == "duplicate"{
+                    let mut n = 0;
+                    let mut first_offset = 0;
+                    let mut second_offset = 0;
+                    let stream_id = 0;
+                    for (local_addr, peer_addr) in scheduled_tuples {
+                        if n == 0 {                  
+                            info!(
+                                "sending on path ({}, {})",
+                                local_addr, peer_addr
+                            );
+                            let stream = conn.streams.get(stream_id);
+                            if !stream.is_none() {
+                                first_offset = stream.unwrap().send.emit_off;
                             }
 
-                            panic!("send() failed: {:?}", e);
-                        }
-                        info!("{} -> {}: written {}", local_addr, send_info.to, write);
-                    }
+                            loop {
+                                let (write, send_info) = match conn.send_on_path(
+                                    &mut out,
+                                    Some(local_addr),
+                                    Some(peer_addr),
+                                ) {
+                                    Ok(v) => v,
 
+                                    Err(quiche::Error::Done) => {
+                                        //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                        break;
+                                    },
+
+                                    Err(e) => {
+                                        info!(
+                                            "{} -> {}: send failed: {:?}",
+                                            local_addr, peer_addr, e
+                                        );
+
+                                        conn.close(false, 0x1, b"fail").ok();
+                                        break;
+                                    },
+                                };
+
+                                if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                    if e.kind() == std::io::ErrorKind::WouldBlock {
+                                        println!(
+                                            "{} -> {}: send() would block",
+                                            local_addr,
+                                            send_info.to
+                                        );
+                                        break;
+                                    }
+
+                                    panic!("send() failed: {:?}", e);
+                                }
+                            
+                                info!("{} -> {}: written {}", local_addr, send_info.to, write);
+                            
+                            }
+                            n += 1;
+                        } else if n == 1 {
+                            let stream = conn.streams.get_mut(stream_id);
+                            if !stream.is_none() {
+                                second_offset = stream.unwrap().send.emit_off;
+                            }
+                            let sent: usize = (second_offset - first_offset).try_into().unwrap();
+
+                            if sent != 0 && second_offset > first_offset {
+                                //copy the data to the other path
+                                //indicate stream data to be retransmitted
+                                let stream = conn.streams.get_mut(stream_id);
+                                if !stream.is_none(){
+                                    stream.unwrap().send.retransmit(first_offset, sent);
+                                }
+                                println!("Retransmitting stream data from offset {:?} to {:?}", first_offset, second_offset);
+                            } 
+                            info!(
+                                "sending on path ({}, {})",
+                                local_addr, peer_addr
+                            );
+                    
+                            loop {
+                                let (write, send_info) = match conn.send_on_path(
+                                    &mut out,
+                                    Some(local_addr),
+                                    Some(peer_addr),
+                                ) {
+                                    Ok(v) => v,
+
+                                    Err(quiche::Error::Done) => {
+                                        //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                        break;
+                                    },
+
+                                    Err(e) => {
+                                        info!(
+                                            "{} -> {}: send failed: {:?}",
+                                            local_addr, peer_addr, e
+                                        );
+
+                                        conn.close(false, 0x1, b"fail").ok();
+                                        break;
+                                    },
+                                };
+
+                                if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                    if e.kind() == std::io::ErrorKind::WouldBlock {
+                                        println!(
+                                            "{} -> {}: send() would block",
+                                            local_addr,
+                                            send_info.to
+                                        );
+                                        break;
+                                    }
+
+                                    panic!("send() failed: {:?}", e);
+                                }
+                            
+                                println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                            }
+                        }
+                    }
+                } else if duplicate {
+                    let mut n = 0;
+                    let mut first_offset = 0;
+                    let mut second_offset = 0;
+                    let stream_id = 0;
+
+                    let mut scheduled_tuples_duplicate = Self::scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
+
+                    let (local_addr1, peer_addr1) = match scheduled_tuples_duplicate.next() {
+                        Some((local_addr, peer_addr)) => (local_addr, peer_addr),
+                        None => {
+                            break
+                        },
+                    };
+                    let (local_addr2, peer_addr2) = match scheduled_tuples_duplicate.next() {
+                        Some((local_addr, peer_addr)) => (local_addr, peer_addr),
+                        None => {
+                            (local_addr1, peer_addr1)
+                        },
+                    };
+
+                    for (local_addr, peer_addr) in scheduled_tuples {
+                        info!(
+                            "sending on path ({}, {})",
+                            local_addr, peer_addr
+                        );
+                        loop {
+                            let stream = conn.streams.get(stream_id);
+                            if !stream.is_none() {
+                                first_offset = stream.unwrap().send.emit_off;
+                            }
+
+                            let (write, send_info) = match conn.send_on_path(
+                                &mut out,
+                                Some(local_addr),
+                                Some(peer_addr),
+                            ) {
+                                Ok(v) => v,
+        
+                                Err(quiche::Error::Done) => {
+                                    //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                    break;
+                                },
+        
+                                Err(e) => {
+                                    info!(
+                                        "{} -> {}: send failed: {:?}",
+                                        local_addr, peer_addr, e
+                                    );
+        
+                                    conn.close(false, 0x1, b"fail").ok();
+                                    break;
+                                },
+                            };
+        
+                            if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                if e.kind() == std::io::ErrorKind::WouldBlock {
+                                    println!(
+                                        "{} -> {}: send() would block",
+                                        local_addr,
+                                        send_info.to
+                                    );
+                                    break;
+                                }
+        
+                                panic!("send() failed: {:?}", e);
+                            }
+                
+                            //println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                            
+                            // DUPLICATE ON PATH 
+                            let stream = conn.streams.get_mut(stream_id);
+                            if !stream.is_none() {
+                                second_offset = stream.unwrap().send.emit_off;
+                            }
+                            let sent: usize = (second_offset - first_offset).try_into().unwrap();
+                            //println!("Number of active paths = {:?}", conn.paths.count_active_paths());
+                            if conn.paths.count_active_paths() > 1 && sent != 0 && second_offset > first_offset {
+                                //indicate stream data to be retransmitted and flushable
+                                /*
+                                let stream = conn.streams.get_mut(stream_id);
+                                if !stream.is_none(){
+                                    stream.unwrap().send.retransmit(first_offset, sent);
+                                }*/
+                                //println!("Retransmitting stream data from offset {:?} to {:?}", first_offset, second_offset);
+
+                                let stream = match conn.streams.get_mut(stream_id) {
+                                    Some(v) => v,
+        
+                                    None => continue,
+                                };
+        
+                                let was_flushable = stream.is_flushable();
+            
+                                stream.send.retransmit(first_offset, sent);
+        
+                                // If the stream is now flushable push it to the
+                                // flushable queue, but only if it wasn't already
+                                // queued.
+                                //
+                                // Consider the stream flushable also when we are
+                                // sending a zero-length frame that has the fin flag
+                                // set.
+                                if stream.is_flushable() && !was_flushable
+                                {
+                                    let priority_key = Arc::clone(&stream.priority_key);
+                                    conn.streams.insert_flushable(&priority_key);
+                                }
+                                //needed ? 
+                                /*
+                                self.stream_retrans_bytes += length as u64;
+                                p.stream_retrans_bytes += length as u64;
+        
+                                self.retrans_count += 1;
+                                p.retrans_count += 1;
+                                */
+                                let laddr = match n {
+                                    0 => local_addr2,
+                                    1 => local_addr1,
+                                    _ => unreachable!(),
+                                };
+                                let paddr = match n {
+                                    0 => peer_addr2,
+                                    1 => peer_addr1,
+                                    _ => unreachable!(),
+                                };
+        
+                                info!(
+                                    "sending duplicate on path ({}, {})",
+                                    laddr, paddr
+                                );
+                                
+                                let (write, send_info) = match conn.send_on_path(
+                                    &mut out,
+                                    Some(laddr),
+                                    Some(paddr),
+                                ) {
+                                    Ok(v) => v,
+            
+                                    Err(quiche::Error::Done) => {println!{"Nothing left to write for path {:?}", laddr}; break},
+            
+                                    Err(e) => {
+                                        info!(
+                                            "{} -> {}: send failed: {:?}",
+                                            local_addr, peer_addr, e
+                                        );
+            
+                                        conn.close(false, 0x1, b"fail").ok();
+                                        break;
+                                    },
+                                };
+            
+                                if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                    if e.kind() == std::io::ErrorKind::WouldBlock {
+                                        println!(
+                                            "{} -> {}: send() would block",
+                                            laddr,
+                                            send_info.to
+                                        );
+                                        break;
+                                    }
+            
+                                    panic!("send() failed: {:?}", e);
+                                }
+                    
+                                //println!("{} -> {}: duplicate written {}", laddr, send_info.to, write);
+                                
+                            }
+                            
+                            
+
+                        }
+
+                        n += 1;
+                    }
+                } else {
+                    for (local_addr, peer_addr) in scheduled_tuples {
+                        info!(
+                            "sending on path ({}, {})",
+                            local_addr, peer_addr
+                        );
+                        loop {
+                            let (write, send_info) = match conn.send_on_path(
+                                &mut out,
+                                Some(local_addr),
+                                Some(peer_addr),
+                            ) {
+                                Ok(v) => v,
+    
+                                Err(quiche::Error::Done) => {
+                                    //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                    break;
+                                },
+    
+                                Err(e) => {
+                                    info!(
+                                        "{} -> {}: send failed: {:?}",
+                                        local_addr, peer_addr, e
+                                    );
+    
+                                    conn.close(false, 0x1, b"fail").ok();
+                                    break;
+                                },
+                            };
+
+                            
+                            if let Err(e) = socket.send_to(&out[..write], send_info.to) {
+                                if e.kind() == std::io::ErrorKind::WouldBlock {
+                                    println!(
+                                        "{} -> {}: send() would block",
+                                        local_addr,
+                                        send_info.to
+                                    );
+                                    break;
+                                }
+    
+                                panic!("send() failed: {:?}", e);
+                            }
+                            println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                        }
+    
+                    }
                 }
+
             }
 
 
@@ -988,7 +1310,6 @@ impl Io {
             self.clients_tx.retain(|k, _| {
                 clients.contains_key(k)
             });
-
         }
     }
 
@@ -1020,6 +1341,15 @@ impl Io {
                 .map(|p| (p.local_addr, p.peer_addr))
                 .collect();
 
+            paths.into_iter()
+        } else if scheduler == "normal" {
+            use itertools::Itertools;
+            let mut paths: Vec<_> = conn
+                .path_stats()
+                .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+                .map(|p| {info!("path : {:?}", p); (p.local_addr, p.peer_addr)})
+                .collect();
+    
             paths.into_iter()
         } else {
             //random scheduler
@@ -1305,26 +1635,28 @@ struct Client {
 
 impl Client {
     async fn run(&mut self) -> Result<()> {
-        let mut buf = [0u8; 1500];
+        let mut time_amount = 0;
+        let mut buf = [0u8; MAX_BRIDGING_BUFFER_SIZE];
+        let mut grpc_up = false;
         loop {
             tokio::select! {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
                 Ok(len) = self.stream.read(&mut buf[..]) => {
-                    if len == 0 {
+                    if len == 0 && grpc_up {
                         println!("Channel to gRPC closed");
                         return Ok(());
                     }
-
+                    grpc_up = true;
                     self.handle_grpc_msg(&buf[..len]).await?
                 },
             }
-
             if self.from_io.is_closed() {
                 println!("Channel from IO closed");
                 return Ok(());
             }
 
         }
+        
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
@@ -1338,7 +1670,6 @@ impl Client {
         println!("{}", vec_to_string); 
          */
         self.stream.write(&msg).await?;
-        
         Ok(())
     }
 

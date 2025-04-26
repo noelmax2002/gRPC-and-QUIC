@@ -11,10 +11,22 @@ use tokio_stream::{Stream, StreamExt};
 use docopt::Docopt;
 use core::net::IpAddr;
 use tokio::time::sleep;
-
+use tokio::sync::mpsc::Sender;
+use std::net::SocketAddr;
+use netsock::get_sockets;
+use netsock::family::AddressFamilyFlags;
+use netsock::protocol::ProtocolFlags;
+use netsock::socket::ProtocolSocketInfo;
+use netsock::socket::TcpSocketInfo;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
 
 #[cfg(feature = "tls")]
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
+use tonic::transport::channel::Change;
+use tokio::time::timeout;
+use netsock;
+
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -40,6 +52,8 @@ Options:
     -p --proto PROTOCOL             Choose the protoBuf to use [default: helloworld].
     -n --num NUM                    Number of requests to send [default: 10].
     -t --time DURATION              Duration between each request [default: 500].
+    --ptimer DURATION               Duration of the timer for ping request [default: 500].
+    --rtime DURATION                Maximum duration of a request [default: 1000].
 ";
 
 //[::1]:50051
@@ -55,11 +69,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut file_path: String = args.get_str("--file").parse().unwrap();
     let mut n = args.get_str("--num").parse().unwrap();
     let dur = args.get_str("--time").parse::<u64>().unwrap();
+    let ptimer = args.get_str("--ptimer").parse::<u64>().unwrap();
+    let rtime = args.get_str("--rtime").parse::<u64>().unwrap();
 
-    let mut server_addrs: Vec<&str> = args
-        .get_vec("--sip");
+    let mut server_addrs: Vec<&str> = args.get_vec("--sip");
 
-   
     let mut server_addr: String = server_addrs[0].to_string();
   
 
@@ -82,39 +96,191 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut channel;
 
+    let problem = Arc::new(AtomicBool::new(false));
+    let problem_clone = problem.clone();
+
+    println!("Client address: {:?}", addrs);
+    println!("Server addresses: {:?}", server_addrs);
+
     if addrs.len() == 2 && server_addrs.len() == 1 {
+        println!("Using multiple client addresses");
         let endpoint1 = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
             .local_address(Some(addrs[0]))
-            .timeout(Duration::from_secs(5))
             .tls_config(tls.clone())?;
         
         let endpoint2 = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
             .local_address(Some(addrs[1]))
-            .timeout(Duration::from_secs(5))
             .tls_config(tls.clone())?;
 
         let endpoints = vec![endpoint1, endpoint2];
 
         channel = Channel::balance_list(endpoints.into_iter());
     } else if addrs.len() == 2 && server_addrs.len() == 2 {
+        println!("Using multiple server addresses");
         let endpoint1 = Endpoint::from_shared(format!("https://{}", server_addrs[0]).to_string()).expect("Invalid URL")
             .local_address(Some(addrs[0]))
-            .timeout(Duration::from_secs(5))
             .tls_config(tls.clone())?;
         
         let endpoint2 = Endpoint::from_shared(format!("https://{}", server_addrs[1]).to_string()).expect("Invalid URL")
             .local_address(Some(addrs[1]))
-            .timeout(Duration::from_secs(5))
             .tls_config(tls.clone())?;
 
+        /*
         let endpoints = vec![endpoint1, endpoint2];
 
         channel = Channel::balance_list(endpoints.into_iter());
+        */
+        
+
+        
+        let (channel_new, rx) = Channel::balance_channel(10);
+        channel = channel_new;
+        
+        let rx1 = rx.clone();
+        let rx2 = rx.clone();/*
+        let socket: SocketAddr = server_addrs[0].parse::<SocketAddr>().unwrap().clone();
+        let addr = socket.ip();
+        println!("Server address: {:?}", addr);
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            println!("Added endpoint 1");
+            let change = Change::Insert("1", endpoint1);
+            let res = rx1.send(change).await;
+            println!("{:?}", res);
+            //continue to monitor endpoint
+
+            /*
+            tokio::time::sleep(Duration::from_millis(ptimer)).await;
+            let change = Change::Remove("1");
+            let res = rx1.send(change).await;
+            println!("{:?}", res);
+            */
+
+            
+            println!("Pinging server address: {:?}", addr);
+            loop {
+                tokio::time::sleep(Duration::from_millis(ptimer)).await;
+                let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
+                let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
+
+                match get_sockets(af_flags, proto_flags) {
+                    Ok(sockets) => {
+                        //filter socket that matches the address
+                        let filtered_sockets: Vec<_> = sockets.clone()
+                            .into_iter()
+                            .filter(|s| s.local_addr() == addr && s.local_port() == socket.port())
+                            .collect();
+
+                        for socket in filtered_sockets { 
+                            //let socket_info = ProtocolSocketInfo::Tcp(socket.protocol_socket_info);
+                            //let socket_info: TcpSocketInfo = socket.protocol_socket_info;
+                            let socket_info = match socket.protocol_socket_info {
+                                ProtocolSocketInfo::Tcp(socket_info) => socket_info,
+                                _ => continue,
+                            };
+                            println!("Socket: {:?}", socket_info.state);
+                        }
+                    },
+                    Err(e) => eprintln!("Failed to get sockets: {}", e),
+                }
+                
+                /*
+                tokio::time::sleep(Duration::from_millis(ptimer)).await;
+                let data = [1,2,3,4];  // ping data
+                let timeout = Duration::from_secs(1);
+                let options = ping_rs::PingOptions { ttl: 128, dont_fragment: true };
+                let result = ping_rs::send_ping(&addr, timeout, &data, Some(&options));
+                match result {
+                    Ok(reply) => println!("Reply from {}: bytes={} time={}ms TTL={}", reply.address, data.len(), reply.rtt, options.ttl),
+                    Err(e) => {
+                        println!("{:?}", e);
+                        //path switching
+                        /*
+                        println!("Added endpoint 2");
+                        let change = Change::Insert("2", endpoint2.clone());
+                        let res = rx2.send(change).await;
+                        println!("{:?}", res);
+                        
+                        println!("Removed first endpoint");
+                        let change = Change::Remove("1");
+                        let res = rx1.send(change).await;
+                        println!("{:?}", res);
+                        */
+                    }
+                }*/
+            }
+        
+        });*/
+ 
+        
+        tokio::spawn(async move {
+            //tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            println!("Added endpoint 1");
+            let change = Change::Insert("1", endpoint1.clone());
+            let res = rx2.send(change).await;
+            println!("{:?}", res);
+
+            //monitor endpoint
+            let mut backup_link = false;
+            loop {
+                tokio::time::sleep(Duration::from_millis(ptimer)).await;
+                println!("Checking health of connection");
+                if backup_link{
+                    /*
+                    println!("Backup link is active");
+                    println!("Try reconnect to endpoint 1");
+                    let new_endpoint1 = endpoint1.clone();
+                    match new_endpoint1.connect().await {
+                        Ok(_) => println!("Connected to endpoint 1"),
+                        Err(e) => {println!("Failed to connect to endpoint 1: {:?}", e); continue;},
+                    }
+                    println!("Added endpoint 1");
+                    let change = Change::Insert("1", new_endpoint1);
+                    let res = rx2.send(change).await;
+                    println!("{:?}", res);
+                    println!("Removing endpoint 2");
+                    let change = Change::Remove("2");
+                    let res = rx2.send(change).await;
+                    println!("{:?}", res);
+
+                    backup_link = false;
+                    */
+
+                } else if problem_clone.load(SeqCst) {
+                    println!("Problem detected, adding endpoint 2");
+                    let change = Change::Insert("2", endpoint2.clone());
+                    let res = rx2.send(change).await;
+                    println!("{:?}", res);
+                    println!("Problem detected, removing endpoint 1");
+                    let change = Change::Remove("1");
+                    let res = rx2.send(change).await;
+                    println!("{:?}", res);
+                    backup_link = true;
+                    problem_clone.swap(false, SeqCst);
+                }
+            }
+
+            /*
+            tokio::time::sleep(tokio::time::Duration::from_secs(7)).await;
+            println!("Added endpoint 1");
+            match endpoint1.connect().await {
+                Ok(_) => println!("Connected to endpoint 1"),
+                Err(e) => println!("Failed to connect to endpoint 1: {:?}", e),
+            }
+            let change = Change::Insert("1", endpoint1);
+            let res = rx2.send(change).await;
+            println!("{:?}", res);
+            //continue to monitor endpoint
+            */
+
+            
+        });
+
     } else {
+        println!("Using single server address");
         channel = Channel::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
         .tls_config(tls)?
-        .connect()
-        .await?;
+        .connect_lazy();
 
     }
 
@@ -154,7 +320,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let response = client.upload_file(request).await?.into_inner();
         println!("Upload Response: {}", response.message);
-
+        /*
         // Download a file
         let request = tonic::Request::new(FileRequest {
             filename: "uploaded_example".into(),
@@ -164,7 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut new_file = File::create("downloaded_example").await?;
         new_file.write_all(&response.data).await?;
 
-        println!("File downloaded successfully!");
+        println!("File downloaded successfully!");*/
 
     } else if proto.as_str() == "fileexchange" {
         let mut client = FileServiceClient::new(channel);
@@ -182,16 +348,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer).await?;
 
-            let request = tonic::Request::new(FileData {
-                filename: "uploaded_example".into(),
-                data: buffer,
-            });
+            let mut retry = true;
+            let mut response;
+            while retry {
+                let request = tonic::Request::new(FileData {
+                    filename: "uploaded_example".into(),
+                    data: buffer.clone(),
+                });
 
-            let response = client.exchange_file(request).await?.into_inner();
+                /*
+                response =  match client.exchange_file(request).await {
+                    Ok(r) => {retry = false; r.into_inner()},
+                    Err(e) => {
+                        println!("Error: {:?}", e);
+                        continue;
+                    }
+                };*/
 
-            let mut new_file = File::create("downloaded_example").await?;
-            new_file.write_all(&response.data).await?;
+                // Cancelling the request by dropping the request future after 1 second
+                response = match timeout(Duration::from_millis(rtime), client.exchange_file(request)).await {
+                    Ok(response) => {retry = false; response?.into_inner()},
+                    Err(_) => {
+                        println!("Cancelled request after 1s");
+                        problem.swap(true, SeqCst);
+                        continue;
+                    }
+                };
 
+
+                //let response = client.exchange_file(request).await?.into_inner();
+
+                let mut new_file = File::create("downloaded_example").await?;
+                new_file.write_all(&response.data).await?;
+            }
+
+        
             println!("File exchanged successfully!");
 
             let d = s.elapsed();
