@@ -23,6 +23,15 @@ path = "src/HTTP2/clientHTTP2.rs"
 required-features = ["tls"]
 
 [[bin]] 
+name = "serverHTTP2custom"
+path = "src/HTTP2custom/serverHTTP2.rs"
+
+[[bin]] 
+name = "clientHTTP2custom"
+path = "src/HTTP2custom/clientHTTP2.rs"
+
+
+[[bin]] 
 name = "serverUDP"
 path = "src/UDP/server_async.rs"
 
@@ -62,6 +71,8 @@ hyper-util = "0.1.10"
 slab = "0.4"
 itertools = "0.10"
 rand = "0.9.0"
+ping-rs = "0.1.2"
+netsock = "0.3.0"
 
 [build-dependencies]
 tonic-build = "0.13"

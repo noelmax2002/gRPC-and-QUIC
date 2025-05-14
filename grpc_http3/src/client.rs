@@ -70,7 +70,7 @@ Options:
     --scheduler SCHEDULER           Choose the scheduler to use [default: lrtt].
     -n --num NUM                    Number of requests to send [default: 10].
     -t --time DURATION              Duration between each request [default: 500].
-    --ack-eliciting-timer TIMEOUT    Timeout for the ack elicting timer in milliseconds [default: 100].
+    --ack-eliciting-timer TIMEOUT   Timeout for the ack elicting timer in milliseconds [default: 100].
     --rcvd-threshold TIMEOUT        Timeout for the rcvd threshold in milliseconds [default: 1000].
     --nocapture                     Do not capture the output of the test.
     --duplicate                     Enable duplicate on path.
@@ -382,8 +382,11 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
         config.set_initial_max_streams_bidi(100_000_000);
         config.set_initial_max_streams_uni(100_000_000);
         config.set_disable_active_migration(false);
+        
         if duplicate {
             config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
+        } else if multipath{
+            config.set_max_ack_delay(rcvd_threshold);
         }
         if early_data {
             config.enable_early_data();
@@ -422,9 +425,12 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 .unwrap();
 
             
-        if let Ok(session) = std::fs::read(session_file) {
-            conn.set_session(&session).ok();
+        if early_data {
+            if let Ok(session) = std::fs::read(session_file) {
+                conn.set_session(&session).ok();
+            }
         }
+    
             
 
         debug!(
@@ -457,7 +463,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
         let mut waiting_to_be_sent: Vec<PartialRequest> = Vec::new();
 
-        let app_data_start = std::time::Instant::now();
+        let app_data_start = std::time::Instant::now() ;
 
         let mut send_time_map: HashMap<std::net::SocketAddr, Duration>  = HashMap::new();
         let mut rcvd_time_map: HashMap<std::net::SocketAddr, Duration>  = HashMap::new();
@@ -471,6 +477,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
         let mut scid_sent = false;
         let mut new_path_probed = false;
+
+        let mut last_addr_recv = addrs[0];
 
         loop { 
 
@@ -515,6 +523,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                     };
 
                     info!("got {} bytes on addr {}", len, local_addr);
+                    last_addr_recv = local_addr;
                     
                     let recv_info = quiche::RecvInfo {
                         to: local_addr,
@@ -547,9 +556,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
 
             if conn.is_closed() {
-                //println!("connection closed, {:?}", conn.stats());
+                println!("connection early closed, {:?}", conn.stats());
                 //println!("gRPC is disconnected: {:?}", from_client.is_closed());
-
                 if !conn.is_established() {
                     error!(
                         "Handshake failed",
@@ -571,7 +579,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         return Ok(());
                     }
                 }
-                //return Ok(());
+                return Ok(());
             }
 
             
@@ -736,6 +744,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             return Ok(());
                         },
                     };
+                    info!("data received from gRPC of len : {:?}", data.len());
                     if data.len() == 9 && data == [0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00] {
                         //this avoid strange message from gRPC that produces error in the server side 
                         break;
@@ -820,6 +829,14 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             }
 
             // force frames to be sent (if nothing then its PING frames) - to get correct RTT-measurements on all paths
+            /*
+            if(conn.is_multipath_enabled() && conn.is_established() && http3_conn.is_some()) {
+                for (addr, time) in send_time_map.iter(){
+                    if app_data_start.elapsed() - *time > std::time::Duration::from_millis(ack_eliciting_timer) {
+                        conn.send_ack_eliciting_on_path(*addr, peer_addr).ok();
+                    }
+                }
+            }*/
             if(conn.is_multipath_enabled() && conn.is_established()) {
                 for (addr, time) in send_time_map.iter(){
                     if app_data_start.elapsed() - *time > std::time::Duration::from_millis(ack_eliciting_timer) {
@@ -1019,7 +1036,12 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
 
             // Determine in which order we are going to iterate over paths.
             //let scheduled_tuples = lowest_latency_scheduler(&conn);
-            let mut scheduled_tuples = scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
+            let mut used_scheduler = scheduler;
+            if !conn.is_established(){
+                used_scheduler = "normal";
+            }
+            let mut scheduled_tuples = scheduler_fn(&conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv);
+            
 
 
             // Generate outgoing QUIC packets and send them on the UDP socket, until
@@ -1082,7 +1104,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             send_time_map.insert(local_addr, app_data_start.elapsed());
 
                         
-                            println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                            info!("{} -> {}: written {}", local_addr, send_info.to, write);
                         
                         }
                         n += 1;
@@ -1123,7 +1145,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                                 },
 
                                 Err(e) => {
-                                    info!(
+                                    println!(
                                         "{} -> {}: send failed: {:?}",
                                         local_addr, peer_addr, e
                                     );
@@ -1149,7 +1171,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                             send_time_map.insert(local_addr, app_data_start.elapsed());
 
                         
-                            println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                            info!("{} -> {}: written {}", local_addr, send_info.to, write);
                         }
                     }
 
@@ -1162,8 +1184,8 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 let mut first_offset = 0;
                 let mut second_offset = 0;
 
-                let mut scheduled_tuples_duplicate = scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
-
+                let mut scheduled_tuples_duplicate = scheduler_fn(&conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv);
+                
                 let (local_addr1, peer_addr1) = match scheduled_tuples_duplicate.next() {
                     Some((local_addr, peer_addr)) => (local_addr, peer_addr),
                     None => {
@@ -1228,7 +1250,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
     
                         send_time_map.insert(local_addr, app_data_start.elapsed());
     
-                        //println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                        info!("{} -> {}: written {}", local_addr, send_info.to, write);
                         
                         // DUPLICATE ON PATH 
                         let stream = conn.streams.get_mut(stream_id);
@@ -1327,7 +1349,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
     
                             send_time_map.insert(laddr, app_data_start.elapsed());
         
-                            //println!("{} -> {}: duplicate written {}", laddr, send_info.to, write);
+                            println!("{} -> {}: duplicate written {}", laddr, send_info.to, write);
                             
                         }
                         
@@ -1482,7 +1504,10 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                 }*/
             
             } else {
+                let mut i = 0;
                 for (local_addr, peer_addr) in scheduled_tuples {
+                    i += 1;
+                    info!("Iteration {} on path ({}, {})", i, local_addr, peer_addr);
                     let token = src_addr_to_token[&local_addr];
                     let socket = &sockets[token];
                     info!(
@@ -1534,8 +1559,11 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
     
                         send_time_map.insert(local_addr, app_data_start.elapsed());
     
-                        println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                        info!("{} -> {}: written {}", local_addr, send_info.to, write);
                     }
+                }
+                if i == 0 {
+                    println!("No path to send data !");
                 }
             }
     
@@ -1572,7 +1600,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
             }
             */
             if conn.is_closed() {
-                //println!("connection closed, {:?}", conn.stats());
+                println!("connection closed, {:?}", conn.stats());
                 //println!("gRPC is disconnected: {:?}", from_client.is_closed());
 
                 if !conn.is_established() {
@@ -1595,7 +1623,7 @@ pub async fn run_client(uri: Uri, to_client: Sender<Vec<u8>>, mut from_client: R
                         return Ok(());
                     }
                 }
-                //return Ok(());
+                return Ok(());
             }
 
         }
@@ -1685,6 +1713,7 @@ fn scheduler_fn(
     rcvd_time_map: &HashMap<std::net::SocketAddr, Duration>,
     start: &std::time::Instant,
     threshold: u64,
+    last_addr_recv: &std::net::SocketAddr,
 ) -> impl Iterator<Item = (std::net::SocketAddr, std::net::SocketAddr)> {
     if scheduler == "lrtt" {
         //lowest-rtt-first scheduler
@@ -1692,21 +1721,61 @@ fn scheduler_fn(
         let mut paths: Vec<_> = conn
             .path_stats()
             .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+            /*
             .filter(|p| {
                 if let Some(time) = rcvd_time_map.get(&p.local_addr) {
                     let n = start.elapsed() - *time;
-                    info!("path {:?} with threshold : {:?}", p.path_id, n);
-                    if n > std::time::Duration::from_millis(threshold) {
-                        info!("path {:?} with threshold : {:?}", p.path_id, n);
-                    }
+                    //let thres = std::time::Duration::from_millis(threshold);
+                    //let thres = 2*p.rtt;
+                    //PTO calculation
+                    let thres = p.rtt + 4*p.rttvar + 2*std::time::Duration::from_millis(threshold);
+                    info!("path {:?} with threshold : {:?} <= {:?}", p.path_id, n, thres);
+                    /*
+                    if n > thres {
+                        println!("path {:?} with threshold : {:?}", p.path_id, n);
+                    }*/
 
-                    n <= std::time::Duration::from_millis(threshold)
+                    n <= thres
                 } else {
                     true
                 }
             })
+            */
             .sorted_by_key(|p| {info!("---"); info!("path {:?} with RTT : {:?}", p.local_addr, p.rtt); p.rtt})
             .map(|p| (p.local_addr, p.peer_addr))
+            .collect();
+        paths.into_iter()
+    } else if scheduler == "lrtt2" { 
+        //lowest-rtt-first scheduler
+        use itertools::Itertools;
+        let mut paths: Vec<_> = conn
+            .path_stats()
+            .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+            .sorted_by_key(|p| {
+                if let Some(time) = rcvd_time_map.get(&p.local_addr) {
+                    let n = start.elapsed() - *time;
+                    //let thres = std::time::Duration::from_millis(threshold);
+                    //let thres = 2*p.rtt;
+                    //PTO calculation
+                    let thres = p.rtt + std::cmp::max(4*p.rttvar, std::time::Duration::from_millis(1))  + 2*std::time::Duration::from_millis(threshold);
+                    //let thres = p.rtt + 4*p.rttvar  + std::time::Duration::from_millis(threshold);
+                    info!("path {:?} with threshold : {:?} <= {:?}", p.path_id, n, thres);
+                    /*
+                    if n > thres {
+                        println!("path {:?} with threshold : {:?}", p.path_id, n);
+                    }*/
+
+                    if n > thres{
+                        info!("path {:?} cut", p.path_id);
+                        std::time::Duration::from_secs(u64::MAX)
+                    } else {
+                        p.rtt
+                    }
+                } else {
+                    p.rtt
+                }
+            })
+            .map(|p| {info!("path {:?} with RTT : {:?}", p.path_id, p.rtt); (p.local_addr, p.peer_addr)})
             .collect();
 
         paths.into_iter()
@@ -1715,6 +1784,23 @@ fn scheduler_fn(
         let mut paths: Vec<_> = conn
             .path_stats()
             .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+            .map(|p| {info!("path : {:?}", p); (p.local_addr, p.peer_addr)})
+            .collect();
+
+        paths.into_iter()
+    } else if scheduler == "last" {
+        //last path scheduler
+        use itertools::Itertools;
+         let mut paths: Vec<_> = conn
+            .path_stats()
+            .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+            .sorted_by_key(|p| {
+                if p.local_addr == *last_addr_recv {
+                    0
+                } else {
+                    1
+                }
+            })
             .map(|p| {info!("path : {:?}", p); (p.local_addr, p.peer_addr)})
             .collect();
 
@@ -1753,6 +1839,7 @@ impl Client {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
                 Ok(len) = self.stream.read(&mut buf[..]) => {
                     if len == 0 {
+                        info!("[CLIENT] Received 0 bytes, closing connection");
                         return Ok(());
                     }
 
@@ -1768,7 +1855,7 @@ impl Client {
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
         //println!("Received IO message: {:?}", msg);
-        //println!("[CLIENT] Received IO message of size: {:?}", msg.len());
+        info!("[CLIENT] Received IO message of size: {:?}", msg.len());
 
         /* 
         println!("[CLIENT] Received IO message of size: {:?}", msg.len());
@@ -1785,12 +1872,15 @@ impl Client {
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
         //println!("Received gRPC message: {:?}", msg);
         //println!("Size of msg : {:?}", msg.len());
-        //println!("Received gRPC msg of size : {:?}", msg.len());
+        info!("[CLIENT] Received gRPC msg of size : {:?}", msg.len());
         if self.to_io.is_closed() {
+            println!("[CLIENT] TO IO channel is closed, not sending message");
             return Ok(());
         }
+
         
         self.to_io.send(msg.to_vec()).await?;
+    
 
         Ok(())
     }

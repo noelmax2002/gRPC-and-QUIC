@@ -63,8 +63,8 @@ Options:
     --multipath                 Enable multipath.
     --scheduler SCHEDULER       Choose the scheduler to use [default: lrtt].
     --rcvd-threshold TIMEOUT    Timeout for the rcvd threshold in milliseconds [default: 1000].
-    -t --token                  Enable stateless retry token.
-    --max-bidi-remote SIZE      Max stream data for remote [default: 100000].
+    --token                     Enable stateless retry token.
+    --max-bidi-remote SIZE      Max stream data for remote [default: 10000].
     --duplicate                 Enable duplicate on path.
 ";
 
@@ -117,6 +117,8 @@ struct QClient {
     pub loss_rate: f64,
 
     pub max_send_burst: usize,
+
+    pub last_addr_recv: std::net::SocketAddr,
     
 }
 
@@ -203,11 +205,14 @@ impl Io {
         config.set_initial_max_stream_data_bidi_local(10_000); //100_000_000
         config.set_initial_max_stream_data_bidi_remote(max_bidi_remote); //this parameter improves the performance
         config.set_initial_max_stream_data_uni(1000);
-        config.set_initial_max_streams_bidi(100);
-        config.set_initial_max_streams_uni(100);
+        config.set_initial_max_streams_bidi(1000);
+        config.set_initial_max_streams_uni(1000);
         config.set_disable_active_migration(false);
+
         if duplicate {
             config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
+        } else if multipath {
+            config.set_max_ack_delay(rcvd_threshold);
         }
         if early_data {
             println!("Enabling 0-RTT");
@@ -455,6 +460,7 @@ impl Io {
                         max_datagram_size: MAX_DATAGRAM_SIZE,
                         loss_rate: 0.0,
                         max_send_burst: MAX_BUF_SIZE,
+                        last_addr_recv: from,
                     };
 
                     clients.insert(client_id, client);
@@ -494,6 +500,8 @@ impl Io {
                         continue 'read;
                     },
                 };
+
+                client.last_addr_recv = from;
 
                 debug!("{} processed {} bytes", client.conn.trace_id(), read);
 
@@ -931,10 +939,16 @@ impl Io {
 
             for client in clients.values_mut() {
                 let conn = client.conn.as_mut();
+                let last_addr_recv = client.last_addr_recv;
 
                 // Determine in which order we are going to iterate over paths.
                 //let scheduled_tuples = lowest_latency_scheduler(&conn);
-                let mut scheduled_tuples = Self::scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
+                let mut used_scheduler = scheduler;
+                if !conn.is_established(){
+                    used_scheduler = "normal";
+                }
+
+                let mut scheduled_tuples = Self::scheduler_fn(&conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv);
 
                 // Generate outgoing QUIC packets and send them on the UDP socket, until
                 // quiche reports that there are no more packets to be sent.
@@ -1053,7 +1067,7 @@ impl Io {
                                     panic!("send() failed: {:?}", e);
                                 }
                             
-                                println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                                info!("{} -> {}: written {}", local_addr, send_info.to, write);
                             }
                         }
                     }
@@ -1063,8 +1077,8 @@ impl Io {
                     let mut second_offset = 0;
                     let stream_id = 0;
 
-                    let mut scheduled_tuples_duplicate = Self::scheduler_fn(&conn, scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold);
-
+                    let mut scheduled_tuples_duplicate = Self::scheduler_fn(&conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv);
+                    
                     let (local_addr1, peer_addr1) = match scheduled_tuples_duplicate.next() {
                         Some((local_addr, peer_addr)) => (local_addr, peer_addr),
                         None => {
@@ -1233,7 +1247,11 @@ impl Io {
                         n += 1;
                     }
                 } else {
+                    let mut i = 0;
                     for (local_addr, peer_addr) in scheduled_tuples {
+                        i += 1;
+                        info!("Iteration {} on path ({}, {})", i, local_addr, peer_addr);
+
                         info!(
                             "sending on path ({}, {})",
                             local_addr, peer_addr
@@ -1275,9 +1293,12 @@ impl Io {
     
                                 panic!("send() failed: {:?}", e);
                             }
-                            println!("{} -> {}: written {}", local_addr, send_info.to, write);
+                            info!("{} -> {}: written {}", local_addr, send_info.to, write);
                         }
     
+                    }
+                    if i == 0{
+                        println!("No path to send data !");
                     }
                 }
 
@@ -1321,6 +1342,7 @@ impl Io {
         rcvd_time_map: &HashMap<std::net::SocketAddr, Duration>,
         start: &std::time::Instant,
         threshold: u64,
+        last_addr_recv: &std::net::SocketAddr,
     ) -> impl Iterator<Item = (std::net::SocketAddr, std::net::SocketAddr)> {
         if scheduler == "lrtt" {
             //lowest-rtt-first scheduler
@@ -1328,19 +1350,64 @@ impl Io {
             let mut paths: Vec<_> = conn
                 .path_stats()
                 .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+                /*
                 .filter(|p| {
                     if let Some(time) = rcvd_time_map.get(&p.peer_addr) {
                         let n = start.elapsed() - *time;
-                        info!("path {:?} with threshold : {:?}", p.path_id, n);
-                        n <= std::time::Duration::from_millis(threshold)
+                        //let thres = std::time::Duration::from_millis(threshold);
+                        //let thres = 2*p.rtt;
+                        //PTO calculation
+                        let thres = p.rtt + 4*p.rttvar + 2*std::time::Duration::from_millis(threshold);
+                        info!("path {:?} with threshold : {:?} <= {:?}", p.path_id, n, thres);
+                        /*
+                        if n > thres {
+                            println!("path {:?} with threshold : {:?}", p.path_id, n);
+                        }*/
+                        n <= thres
                     } else {
                         true
                     }
                 })
+                */
                 .sorted_by_key(|p| {info!("path {:?} with RTT : {:?}", p, p.rtt); p.rtt})
                 .map(|p| (p.local_addr, p.peer_addr))
                 .collect();
 
+            paths.into_iter()
+        } else if scheduler == "lrtt2" { 
+            //lowest-rtt-first scheduler
+            use itertools::Itertools;
+            let mut paths: Vec<_> = conn
+                .path_stats()
+                .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+                .sorted_by_key(|p| {
+                    if let Some(time) = rcvd_time_map.get(&p.peer_addr) {
+                        let n = start.elapsed() - *time;
+                        //let thres = std::time::Duration::from_millis(threshold);
+                        //let thres = 2*p.rtt;
+                        //PTO calculation
+                        let thres = p.rtt + std::cmp::max(4*p.rttvar, std::time::Duration::from_millis(1))  + 2*std::time::Duration::from_millis(threshold);
+                        //let thres = p.rtt + 4*p.rttvar  + std::time::Duration::from_millis(threshold);
+                        info!("path {:?} with threshold : {:?} <= {:?}", p.path_id, n, thres);
+                        /*
+                        if n > thres {
+                            println!("path {:?} with threshold : {:?}", p.path_id, n);
+                        }*/
+                        info!("path {:?} with RTT : {:?}", p.path_id, p.rtt);
+    
+                        if n > thres{
+                            info!("path {:?} cut", p.path_id);
+                            std::time::Duration::from_secs(u64::MAX)
+                        } else {
+                            p.rtt
+                        }
+                    } else {
+                        p.rtt
+                    }
+                })
+                .map(|p| (p.local_addr, p.peer_addr))
+                .collect();
+    
             paths.into_iter()
         } else if scheduler == "normal" {
             use itertools::Itertools;
@@ -1350,6 +1417,22 @@ impl Io {
                 .map(|p| {info!("path : {:?}", p); (p.local_addr, p.peer_addr)})
                 .collect();
     
+            paths.into_iter()
+        } else if scheduler == "last" {
+            use itertools::Itertools;
+            let mut paths: Vec<_> = conn
+                .path_stats()
+                .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+                .sorted_by_key(|p| {
+                    if p.peer_addr == *last_addr_recv {
+                        0
+                    } else {
+                        1
+                    }
+                })
+                .map(|p| {info!("path : {:?}", p); (p.local_addr, p.peer_addr)})
+                .collect();
+
             paths.into_iter()
         } else {
             //random scheduler
@@ -1596,7 +1679,7 @@ impl Io {
 
             client.partial_responses.remove(&stream_id);
         } else {
-            println!("{} stream {} written {} bytes", conn.trace_id(), stream_id, written);
+            info!("{} stream {} written {} bytes", conn.trace_id(), stream_id, written);
         }
     }
 
@@ -1660,7 +1743,7 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
-        //println!("[SERVER] Client got a message from IO: {:?}", msg);
+        //println!("[SERVER] Received IO message of size: {:?}", msg.len());
         //sleep(Duration::from_millis(1)).await;
         
         /* 
@@ -1675,13 +1758,15 @@ impl Client {
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
         //println!("Received gRPC message: {:?}", msg);
-        /* 
-        println!("[SERVER] gRPC message of size: {:?}", msg.len());
+        //println!("[SERVER] gRPC message of size: {:?}", msg.len());
+ 
+        /*
         let vec_to_string = String::from_utf8_lossy(msg.clone());
         println!("{:?}", msg);
         println!("{}", vec_to_string); 
          */
         self.to_io.send((msg.to_vec(), self.id.clone()));
+
         Ok(())
     }
 }
