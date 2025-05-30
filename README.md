@@ -11,3 +11,10 @@ It is structured as follow :
     - **Bridging/**: the main implementation with TCP instead of QUIC
 + **proto/**: all the .proto filed used 
 + **Tests/**: contains the test scripts and the Mininet python scripts
+
+---
+Based on :
+
+https://github.com/hyperium/tonic
+and 
+https://github.com/qdeconinck/quiche/tree/multipath-ietf-121
