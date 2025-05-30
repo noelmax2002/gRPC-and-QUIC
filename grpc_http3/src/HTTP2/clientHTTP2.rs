@@ -48,16 +48,13 @@ Options:
     -s --sip ADDRESS ...            Server IPv4 address and port [default: 127.0.0.1:4433].
     -A --address ADDR ...           Client potential multiple addresses.
     --ca-cert PATH                  Path to ca.pem [default: ./HTTP2/tls/ca.pem].
-    --file FILE                     File to upload [default: ../swift_file_examples/small.txt].
+    --file FILE                     File to upload [default: ../file_examples/small.txt].
     -p --proto PROTOCOL             Choose the protoBuf to use [default: helloworld].
     -n --num NUM                    Number of requests to send [default: 10].
     -t --time DURATION              Duration between each request [default: 500].
     --ptimer DURATION               Duration of the timer for link probing [default: 500].
     --rtime DURATION                Maximum duration of a request [default: 1000].
 ";
-
-//[::1]:50051
-//192.168.1.7:8080
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -99,9 +96,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let problem = Arc::new(AtomicBool::new(false));
     let problem_clone = problem.clone();
 
-    println!("Client address: {:?}", addrs);
-    println!("Server addresses: {:?}", server_addrs);
-
     if addrs.len() == 2 && server_addrs.len() == 1 {
         println!("Using multiple client addresses");
         let endpoint1 = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
@@ -134,84 +128,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             channel = channel_new;
             
             let rx1 = rx.clone();
-            let rx2 = rx.clone();/*
-            let socket: SocketAddr = server_addrs[0].parse::<SocketAddr>().unwrap().clone();
-            let addr = socket.ip();
-            println!("Server address: {:?}", addr);
-            tokio::spawn(async move {
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                println!("Added endpoint 1");
-                let change = Change::Insert("1", endpoint1);
-                let res = rx1.send(change).await;
-                println!("{:?}", res);
-                //continue to monitor endpoint
-
-                /*
-                tokio::time::sleep(Duration::from_millis(ptimer)).await;
-                let change = Change::Remove("1");
-                let res = rx1.send(change).await;
-                println!("{:?}", res);
-                */
-
-                
-                println!("Pinging server address: {:?}", addr);
-                loop {
-                    tokio::time::sleep(Duration::from_millis(ptimer)).await;
-                    let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
-                    let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
-
-                    match get_sockets(af_flags, proto_flags) {
-                        Ok(sockets) => {
-                            //filter socket that matches the address
-                            let filtered_sockets: Vec<_> = sockets.clone()
-                                .into_iter()
-                                .filter(|s| s.local_addr() == addr && s.local_port() == socket.port())
-                                .collect();
-
-                            for socket in filtered_sockets { 
-                                //let socket_info = ProtocolSocketInfo::Tcp(socket.protocol_socket_info);
-                                //let socket_info: TcpSocketInfo = socket.protocol_socket_info;
-                                let socket_info = match socket.protocol_socket_info {
-                                    ProtocolSocketInfo::Tcp(socket_info) => socket_info,
-                                    _ => continue,
-                                };
-                                println!("Socket: {:?}", socket_info.state);
-                            }
-                        },
-                        Err(e) => eprintln!("Failed to get sockets: {}", e),
-                    }
-                    
-                    /*
-                    tokio::time::sleep(Duration::from_millis(ptimer)).await;
-                    let data = [1,2,3,4];  // ping data
-                    let timeout = Duration::from_secs(1);
-                    let options = ping_rs::PingOptions { ttl: 128, dont_fragment: true };
-                    let result = ping_rs::send_ping(&addr, timeout, &data, Some(&options));
-                    match result {
-                        Ok(reply) => println!("Reply from {}: bytes={} time={}ms TTL={}", reply.address, data.len(), reply.rtt, options.ttl),
-                        Err(e) => {
-                            println!("{:?}", e);
-                            //path switching
-                            /*
-                            println!("Added endpoint 2");
-                            let change = Change::Insert("2", endpoint2.clone());
-                            let res = rx2.send(change).await;
-                            println!("{:?}", res);
-                            
-                            println!("Removed first endpoint");
-                            let change = Change::Remove("1");
-                            let res = rx1.send(change).await;
-                            println!("{:?}", res);
-                            */
-                        }
-                    }*/
-                }
-            
-            });*/
-    
+            let rx2 = rx.clone();
             
             tokio::spawn(async move {
-                //tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 println!("Added endpoint 1");
                 let change = Change::Insert("1", endpoint1.clone());
                 let res = rx2.send(change).await;
@@ -256,21 +175,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         problem_clone.swap(false, SeqCst);
                     }
                 }
-
-                /*
-                tokio::time::sleep(tokio::time::Duration::from_secs(7)).await;
-                println!("Added endpoint 1");
-                match endpoint1.connect().await {
-                    Ok(_) => println!("Connected to endpoint 1"),
-                    Err(e) => println!("Failed to connect to endpoint 1: {:?}", e),
-                }
-                let change = Change::Insert("1", endpoint1);
-                let res = rx2.send(change).await;
-                println!("{:?}", res);
-                //continue to monitor endpoint
-                */
-
-                
             });
         }
 
@@ -305,7 +209,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Upload a file
         if cfg!(target_os = "windows") {
-            file_path = "./swift_file_examples/big.txt".to_string();
+            file_path = "./file_examples/big.txt".to_string();
         }
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
@@ -340,7 +244,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let s = Instant::now();
             // exchange a file
             if cfg!(target_os = "windows") {
-                file_path = "./swift_file_examples/big.txt".to_string();
+                file_path = "./file_examples/big.txt".to_string();
             }
             let mut file = File::open(file_path.clone()).await?;
             let mut buffer = Vec::new();
@@ -354,17 +258,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     data: buffer.clone(),
                 });
 
-                /*
-                response =  match client.exchange_file(request).await {
-                    Ok(r) => {retry = false; r.into_inner()},
-                    Err(e) => {
-                        println!("Error: {:?}", e);
-                        continue;
-                    }
-                };*/
-
                 // Cancelling the request by dropping the request future after 1 second
-                
                 response = match timeout(Duration::from_millis(rtime), client.exchange_file(request)).await {
                     Ok(response) => {retry = false; response?.into_inner()},
                     Err(_) => {
@@ -373,10 +267,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         continue;
                     }
                 };
-
-                /*
-                response = client.exchange_file(request).await?.into_inner();
-                retry = false;*/
 
                 let mut new_file = File::create("downloaded_example").await?;
                 new_file.write_all(&response.data).await?;
@@ -403,7 +293,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[tokio::test]

@@ -81,7 +81,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_iter()
         .map(|addr| addr.parse().expect("Invalid IP address"))
         .collect();
-
     
     let addr = server_addrs[0];
     

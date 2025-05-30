@@ -67,8 +67,6 @@ impl Greeter for MyGreeter {
         Ok(Response::new(reply))
     }
 }
-//[::1]:50051
-//192.168.1.7:8080
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

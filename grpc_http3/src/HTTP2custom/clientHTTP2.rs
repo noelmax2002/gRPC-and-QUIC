@@ -26,6 +26,8 @@ use hyper_util::rt::TokioIo;
 use std::{pin::Pin, task::{Context, Poll}, future::Future};
 use std::io;
 use std::net::TcpStream as StdTcpStream;
+use tokio::task::yield_now;
+
 
 #[cfg(target_os = "linux")]
 use libc::{getsockopt, socklen_t, tcp_info, SOL_TCP, TCP_INFO};
@@ -58,16 +60,13 @@ Options:
     -s --sip ADDRESS ...            Server IPv4 address and port [default: 127.0.0.1:4433].
     -A --address ADDR ...           Client potential multiple addresses.
     --ca-cert PATH                  Path to ca.pem [default: ./HTTP2/tls/ca.pem].
-    --file FILE                     File to upload [default: ../swift_file_examples/small.txt].
+    --file FILE                     File to upload [default: ../file_examples/small.txt].
     -p --proto PROTOCOL             Choose the protoBuf to use [default: helloworld].
     -n --num NUM                    Number of requests to send [default: 10].
     -t --time DURATION              Duration between each request [default: 500].
     --ptimer DURATION               Duration of the timer for ping request [default: 100].
     --rtime DURATION                Maximum duration of a request [default: 1000].
 ";
-
-//[::1]:50051
-//192.168.1.7:8080
 
 struct TcpConnector {
     stream: Option<TcpStream>,
@@ -78,6 +77,7 @@ pub struct TcpStats {
     pub rtt_us: u32,         // Smoothed RTT in microseconds
     pub rtt_var_us: u32,     // RTT variance in microseconds
     pub retransmits: u32,    // Number of retransmissions
+    pub keepalive: u8,      // Number of keepalive probes sent
 }
 
 impl tower::Service<Uri> for TcpConnector {
@@ -111,6 +111,7 @@ pub fn get_tcp_stats(stream: &TcpStream) -> Option<TcpStats> {
             rtt_us: tcp_info.tcpi_rtt,           
             rtt_var_us: tcp_info.tcpi_rttvar,    
             retransmits: tcp_info.tcpi_retrans,
+            keepalive: tcp_info.tcpi_probes,
         })
     } else {
         None
@@ -125,23 +126,13 @@ pub fn get_tcp_stats(stream: &TcpStream) -> Option<TcpStats> {
 
 /// Duplicate a `tokio::net::TcpStream` by duplicating the FD.
 fn clone_tokio_tcp_stream(orig: &TcpStream) -> io::Result<TcpStream> {
-    // 1) get the raw fd
     let fd = orig.as_raw_fd();
-
-    // 2) dup it
     let new_fd = unsafe { libc::dup(fd) };
     if new_fd < 0 {
         return Err(io::Error::last_os_error());
     }
-
-    // 3) build a std::net::TcpStream from the new fd
-    //    SAFETY: new_fd is a valid duplicated fd
     let std_stream = unsafe { StdTcpStream::from_raw_fd(new_fd) };
-
-    // 4) set nonblocking so Tokio can use it
     std_stream.set_nonblocking(true)?;
-
-    // 5) convert into a Tokio TcpStream
     TcpStream::from_std(std_stream)
 }
 
@@ -179,9 +170,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut monitoring = false;
 
-    println!("Client address: {:?}", addrs);
-    println!("Server addresses: {:?}", server_addrs);
-
     if addrs.len() == 2 && server_addrs.len() == 1 {
         
         println!("Using multiple client addresses");
@@ -198,58 +186,75 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else if addrs.len() == 2 && server_addrs.len() == 2 {
         monitoring = true;
         let socket = TcpSocket::new_v4()?;
-        socket.bind(SocketAddr::new(addrs[0], 3355))?;
+        socket.set_keepalive(true)?;
+        socket.set_reuseaddr(true)?;
+        socket.set_reuseport(true)?;
+        socket.set_nodelay(true)?;
+        socket.bind(SocketAddr::new(addrs[0], 3477))?;
         let stream = socket.connect(server_addrs[0].clone().parse().expect("Problem parsing the server adresse.")).await?;
         let stream_for_stats = clone_tokio_tcp_stream(&stream)?;
         let connector = TcpConnector { stream: Some(stream) };
         channel = Endpoint::from_shared(format!("https://{}", server_addrs[0]).to_string()).expect("Invalid URL").connect_with_connector_lazy(connector);
 
+
         let socket2 = TcpSocket::new_v4()?;
-        socket2.bind(SocketAddr::new(addrs[1], 8080))?;
+        socket2.set_keepalive(true)?;
+        socket2.set_reuseaddr(true)?;
+        socket2.set_reuseport(true)?;
+        socket2.set_nodelay(true)?;
+        socket2.bind(SocketAddr::new(addrs[1], 7777))?;
         let stream2 = socket2.connect(server_addrs[1].clone().parse().expect("Problem parsing the server adresse.")).await?;
         let stream2_for_stats = clone_tokio_tcp_stream(&stream2)?;
         let connector2 = TcpConnector { stream: Some(stream2) };
         channel2 = Endpoint::from_shared(format!("https://{}", server_addrs[1]).to_string()).expect("Invalid URL").connect_with_connector_lazy(connector2);
 
         tokio::spawn(async move {
+            let mut rtt_primary = 0;
             loop {
                 sleep(Duration::from_millis(ptimer)).await;
-                println!("Checking health of connection");
+                //println!("Checking health of connection");
                 
                 let stats = get_tcp_stats(&stream_for_stats).unwrap();
                 let stats2 = get_tcp_stats(&stream2_for_stats).unwrap();
 
                 let stats = match get_tcp_stats(&stream_for_stats) {
                     Some(stats) => {
-                        println!("Primary RTT: {} us", stats.rtt_us);
                         stats
                     }
                     None => {
-                        println!("Failed to get TCP stats of primary path");
                         panic!("Failed to get TCP stats of primary path")
                     }
                 };
 
                 let stats2 = match get_tcp_stats(&stream2_for_stats) {
                     Some(stats) => {
-                        println!("Backup RTT: {} us", stats.rtt_us);
                         stats
                     }
                     None => {
-                        println!("Failed to get TCP stats of backup path");
                         panic!("Failed to get TCP stats of backup path")
                     }
                 };
                
-                if stats.rtt_us > stats2.rtt_us {
-                    println!("Switching to backup connection");
+                if problem_clone.load(SeqCst) {
+                    if change_channel_clone.load(SeqCst) {
+                        if rtt_primary != stats.rtt_us { //The link is backup as there is a new rtt measurement
+                            change_channel_clone.store(false, SeqCst);
+                            problem_clone.store(false, SeqCst);
+                            rtt_primary = stats.rtt_us;
+                        } else {
+                            change_channel_clone.store(true, SeqCst);
+                        }
+                    } else {
+                        change_channel_clone.store(true, SeqCst);
+                        rtt_primary = stats.rtt_us;
+                    }
+                        
+                } else if stats.rtt_us > stats2.rtt_us + 5000 {
                     change_channel_clone.store(true, SeqCst);
                 } else {
-                    println!("Using primary connection");
                     change_channel_clone.store(false, SeqCst);
                 }
                 
-            
             }
         });
 
@@ -261,49 +266,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let socket = TcpSocket::new_v4()?;
         socket.bind(addr)?;
 
-        //let listener = socket.listen(1024)?;
-
-        //let stream = TcpStream::connect(server_addr.clone()).await?;
         let stream = socket.connect(server_addr.clone().parse().expect("Problem parsing the server adresse.")).await?;
         let stream_for_stats = clone_tokio_tcp_stream(&stream)?;
         let connector = TcpConnector { stream: Some(stream) };
         channel = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL").connect_with_connector_lazy(connector);
 
-        /*
-        let stream2 = TcpStream::connect(server_addr.clone()).await?;
-        let stream2_for_stats = clone_tokio_tcp_stream(&stream)?;
-        let connector2 = TcpConnector { stream: Some(stream) };
-        channel2 = Endpoint::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL").connect_with_connector_lazy(connector);*/
-
-        tokio::spawn(async move {
-            loop {
-                sleep(Duration::from_millis(ptimer)).await;
-                println!("Checking health of connection");
-    
-                match get_tcp_stats(&stream_for_stats) {
-                    Some(stats) => {
-                        println!("RTT: {} us", stats.rtt_us);
-                        println!("RTT variance: {} us", stats.rtt_var_us);
-                        println!("Retransmits: {}", stats.retransmits);
-                    }
-                    None => {
-                        println!("Failed to get TCP stats");
-                    }
-                }
-            }
-        });
-
-        /*
-        channel = Channel::from_shared(format!("https://{}", server_addr).to_string()).expect("Invalid URL")
-        .tls_config(tls)?
-        .connect_lazy();
-        */
         channel2 = channel.clone();
 
 
     }
 
-    
 
     let start = Instant::now();
         
@@ -326,7 +298,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Upload a file
         if cfg!(target_os = "windows") {
-            file_path = "./swift_file_examples/big.txt".to_string();
+            file_path = "./file_examples/big.txt".to_string();
         }
         let mut file = File::open(file_path).await?;
         let mut buffer = Vec::new();
@@ -363,7 +335,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let s = Instant::now();
                 // exchange a file
                 if cfg!(target_os = "windows") {
-                    file_path = "./swift_file_examples/big.txt".to_string();
+                    file_path = "./file_examples/big.txt".to_string();
                 }
                 let mut file = File::open(file_path.clone()).await?;
                 let mut buffer = Vec::new();
@@ -377,17 +349,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         data: buffer.clone(),
                     });
 
-                    /*
-                    response =  match client.exchange_file(request).await {
-                        Ok(r) => {retry = false; r.into_inner()},
-                        Err(e) => {
-                            println!("Error: {:?}", e);
-                            continue;
-                        }
-                    };*/
-
+                    
                     // Cancelling the request by dropping the request future after 1 second
-
                     let used_client;
 
                     if change_channel.load(SeqCst) {
@@ -401,8 +364,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     response = match timeout(Duration::from_millis(rtime), used_client.exchange_file(request)).await {
                         Ok(response) => {retry = false; response?.into_inner()},
                         Err(_) => {
-                            println!("Cancelled request after 1s");
+                            println!("Cancelled request after timeout expiration, {:?}", rtime);
                             problem.swap(true, SeqCst);
+                            sleep(Duration::from_millis(15)).await; // Let time for monitoring thread to switch the channel
                             continue;
                         }
                     };
@@ -429,7 +393,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let s = Instant::now();
                 // exchange a file
                 if cfg!(target_os = "windows") {
-                    file_path = "./swift_file_examples/big.txt".to_string();
+                    file_path = "./file_examples/big.txt".to_string();
                 }
                 let mut file = File::open(file_path.clone()).await?;
                 let mut buffer = Vec::new();
@@ -442,27 +406,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         filename: "uploaded_example".into(),
                         data: buffer.clone(),
                     });
-
-                    /*
-                    response =  match client.exchange_file(request).await {
-                        Ok(r) => {retry = false; r.into_inner()},
-                        Err(e) => {
-                            println!("Error: {:?}", e);
-                            continue;
-                        }
-                    };*/
-
-                    // Cancelling the request by dropping the request future after 1 second
-                    /*
-                    response = match timeout(Duration::from_millis(rtime), client.exchange_file(request)).await {
-                        Ok(response) => {retry = false; response?.into_inner()},
-                        Err(_) => {
-                            println!("Cancelled request after 1s");
-                            problem.swap(true, SeqCst);
-                            continue;
-                        }
-                    };*/
-
 
                     response = client.exchange_file(request).await?.into_inner();
                     retry = false;
@@ -494,7 +437,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[tokio::test]

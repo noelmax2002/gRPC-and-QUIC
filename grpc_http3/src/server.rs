@@ -62,9 +62,12 @@ Options:
     --key-file PATH             Path to the private key file [default: cert.key].
     --multipath                 Enable multipath.
     --scheduler SCHEDULER       Choose the scheduler to use [default: lrtt].
-    --rcvd-threshold TIMEOUT    Timeout for the rcvd threshold in milliseconds [default: 1000].
+    --rcvd-threshold TIMEOUT    Timeout for the rcvd threshold in milliseconds [default: 25].
     --token                     Enable stateless retry token.
     --max-bidi-remote SIZE      Max stream data for remote [default: 10000].
+    --ack-eliciting-timer TIMEOUT   Timeout for the ack elicting timer in milliseconds [default: 25].
+    --no-pacing                 Disable pacing.
+    --no-cc                     Disable congestion control.
     --duplicate                 Enable duplicate on path.
 ";
 
@@ -119,7 +122,12 @@ struct QClient {
     pub max_send_burst: usize,
 
     pub last_addr_recv: std::net::SocketAddr,
-    
+
+    pub last_primary_path: std::net::SocketAddr,
+
+    pub rtt_map: HashMap<std::net::SocketAddr, Duration>,
+
+    pub cut_map: HashMap<std::net::SocketAddr, bool>,
 }
 
 pub type ClientIdMap = HashMap<ConnectionId<'static>, ClientId>;
@@ -148,10 +156,7 @@ impl Io {
         // Setup the event loop.
         let mut poll = mio::Poll::new().unwrap();
         let mut events = mio::Events::with_capacity(1024);
-//127.0.0.1:4433
-//192.168.1.7:8080
-       
-        //Read from CLI to learn the server/client address.
+
         let args = Docopt::new(USAGE).expect("Problem during the parsing").parse().unwrap_or_else(|e| e.exit());
 
         let server_addr = args.get_str("--sip").to_string();
@@ -166,6 +171,9 @@ impl Io {
         let rcvd_threshold = args.get_str("--rcvd-threshold").parse::<u64>().unwrap();
         let duplicate = args.get_bool("--duplicate");
         let max_bidi_remote = args.get_str("--max-bidi-remote").parse::<u64>().unwrap();
+        let ack_eliciting_timer = args.get_str("--ack-eliciting-timer").parse::<u64>().unwrap();
+        let no_pacing = args.get_bool("--no-pacing");
+        let no_cc = args.get_bool("--no-cc");
 
         // Create the UDP listening socket, and register it with the event loop.
         let mut socket = mio::net::UdpSocket::bind(server_addr.parse().unwrap()).unwrap();
@@ -202,12 +210,13 @@ impl Io {
         config.set_max_recv_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_max_send_udp_payload_size(MAX_DATAGRAM_SIZE);
         config.set_initial_max_data(10_000_000_000);
-        config.set_initial_max_stream_data_bidi_local(10_000); //100_000_000
+        config.set_initial_max_stream_data_bidi_local(10_000); 
         config.set_initial_max_stream_data_bidi_remote(max_bidi_remote); //this parameter improves the performance
         config.set_initial_max_stream_data_uni(1000);
         config.set_initial_max_streams_bidi(1000);
         config.set_initial_max_streams_uni(1000);
         config.set_disable_active_migration(false);
+        config.enable_pacing(!no_pacing);
 
         if duplicate {
             config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
@@ -215,7 +224,6 @@ impl Io {
             config.set_max_ack_delay(rcvd_threshold);
         }
         if early_data {
-            println!("Enabling 0-RTT");
             config.enable_early_data(); // Enable 0-RTT ? May be bad for security.
         }
 
@@ -224,19 +232,11 @@ impl Io {
         } else {
             config.set_initial_max_path_id(0);
         }
-        /*
-        config.set_max_connection_window(1_000_000);
-        config.set_max_stream_window(1_000_000);
-        config.set_max_send_udp_payload_size(60_000);*/
 
-        //config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
-        /*
-        config.set_max_connection_window(10_000); 
-        config.set_max_stream_window(10_000); 
-        config.set_initial_congestion_window_packets(10_000);
-        */
-        //config.set_max_send_udp_payload_size(60_000);
-       
+        if no_cc {
+            config.set_cc_algorithm(quiche::CongestionControlAlgorithm::DISABLED);
+        }
+        
         let h3_config = quiche::h3::Config::new().unwrap();
 
         let rng = SystemRandom::new();
@@ -253,11 +253,13 @@ impl Io {
                     quiche::h3::Header::new(b"server", b"quiche"),
                 ];
         
-        //let mut received_buffer = Vec::new();
         let mut continue_write = false;
 
         let app_data_start = std::time::Instant::now();
         let mut rcvd_time_map: HashMap<std::net::SocketAddr, Duration>  = HashMap::new();
+        let mut last_ack_eliciting_sent_time = app_data_start.elapsed();
+
+        let recvd_stream_id = 0;
 
         loop {
             // Find the shorter timeout from all the active connections.
@@ -275,14 +277,6 @@ impl Io {
                 },
             };
             poll.poll(&mut events, timeout).unwrap();
-
-            /*
-            if poll_timeout == 0 {
-                let mut timeout = clients.values().filter_map(|c| c.conn.timeout()).min();
-                poll.poll(&mut events, timeout).unwrap();
-            } else {
-                poll.poll(&mut events, Some(Duration::from_millis(poll_timeout))).unwrap();
-            }*/
 
             // Read incoming UDP packets from the socket and feed them to quiche,
             // until there are no more packets to read.
@@ -319,7 +313,7 @@ impl Io {
                     },
                 };
 
-                debug!("got {} bytes from {:?}", len, from);
+                info!("got {} bytes from {:?}", len, from);
 
                 rcvd_time_map.insert(from, app_data_start.elapsed());
 
@@ -461,6 +455,9 @@ impl Io {
                         loss_rate: 0.0,
                         max_send_burst: MAX_BUF_SIZE,
                         last_addr_recv: from,
+                        last_primary_path: from,
+                        cut_map: HashMap::new(),
+                        rtt_map: HashMap::new(),
                     };
 
                     clients.insert(client_id, client);
@@ -470,13 +467,6 @@ impl Io {
 
                     clients.get_mut(&client_id).unwrap()
                 } else {
-                    /* 
-                    match clients.get_mut(&hdr.dcid) {
-                        Some(v) => v,
-
-                        None => clients.get_mut(&conn_id).unwrap(),
-                    }*/
-
                     let cid = match clients_ids.get(&hdr.dcid) {
                         Some(v) => v,
     
@@ -502,7 +492,6 @@ impl Io {
                 };
 
                 client.last_addr_recv = from;
-
                 debug!("{} processed {} bytes", client.conn.trace_id(), read);
 
                 // Create a new HTTP/3 connection as soon as the QUIC connection
@@ -564,7 +553,6 @@ impl Io {
                             tokio::spawn(async move {
                                 new_client.run().await.unwrap();
                             });
-                            //sleep(Duration::new(0,1)).await;
                             tokio::task::yield_now().await;
             
                             // Notify gRPC of the new client.
@@ -590,32 +578,6 @@ impl Io {
                     // Process HTTP/3 events.
                     loop {
                         let http3_conn = client.http3_conn.as_mut().unwrap();
-                        /* 
-                        //try to send data from the received_buffer to client_tx
-                        if !received_buffer.is_empty() {
-                            let client_tx = match self.clients_tx.get(&client.id) {
-                                Some(v) => v,
-                                None => {
-                                   //error
-                                   println!("Client send data without proper http3 connection !");
-                                   continue;
-                                }
-                            };
-                            match client_tx.try_send(received_buffer.clone()) {
-                                Ok(v) => v,
-                                Err(mpsc::error::TrySendError::Full(_)) => {
-                                    //error
-                                    println!("Client send buffer is full !");
-                                    continue;
-                                },
-                                Err(e) => {
-                                    error!("gRPC channel closed: {:?}", e);
-                                    break;
-                                }
-                            }
-                            received_buffer.clear();
-                        }*/
-
                         match http3_conn.poll(&mut client.conn) {
                             Ok((
                                 _stream_id,
@@ -634,34 +596,20 @@ impl Io {
                                     let client_tx = match self.clients_tx.get(&client.client_id) {
                                         Some(v) => v,
                                         None => {
-                                           //error
-                                           //println!("Client send data without proper http3 connection !");
                                            error!("Client send data without proper http3 connection !");
                                            continue;
                                         }
                                     };
                                     match client_tx.send(buf[..read].to_vec()) {
                                         Ok(v) => v,
-                                        /* 
-                                        Err(mpsc::error::TrySendError::Full(_)) => {
-                                            //error
-                                            println!("Client send buffer is full !");
-                                            //received_buffer.extend_from_slice(&buf[..read]);
-                                            sleep(Duration::new(0,1)).await;
-
-                                            continue;
-                                        },*/
                                         Err(e) => {
                                             println!("gRPC channel closed: {:?}", e);
                                             break;
                                         }
                                     }
-                                   //sleep(Duration::from_millis(1)).await;
-                                    //sleep(Duration::new(0,1)).await;
                                     tokio::task::yield_now().await;
 
                                 }
-                                //client.conn.stream_shutdown(stream_id, quiche::Shutdown::Read, 0).unwrap();
                             },
 
                             Ok((_stream_id, quiche::h3::Event::Finished)) => (),
@@ -669,8 +617,6 @@ impl Io {
                             Ok((_stream_id, quiche::h3::Event::Reset { .. })) => (),
 
                             Ok((_goaway_id, quiche::h3::Event::GoAway)) => (),
-
-                            //Ok((_, quiche::h3::Event::Datagram)) => (),
 
                             Ok((_, quiche::h3::Event::PriorityUpdate)) => (),
 
@@ -707,15 +653,11 @@ impl Io {
                     
                 };
 
-                //println!("sending HTTP response {:?}", resp);
-                //println!("{:?}", data);
-                //println!("sending HTTP response of size {:?}", data.len());
-
                 let client = match clients.get_mut(&id) {
                     Some(v) => v,
                     None => {
                        //error
-                       println!("Client not found in the client array !");      
+                       error!("Client not found in the client array !");      
                        continue;
                     }
                 };
@@ -803,143 +745,29 @@ impl Io {
                     }
                 } 
             }
-           
-
+            
+            for client in clients.values_mut(){
+                let mut conn = client.conn.as_mut();
+                if(conn.is_multipath_enabled() && conn.is_established()) {
+                    if app_data_start.elapsed() - last_ack_eliciting_sent_time > std::time::Duration::from_millis(ack_eliciting_timer) {
+                        let mut scheduled_tuples = Self::scheduler_fn(&mut conn, "normal", &rcvd_time_map, &app_data_start, rcvd_threshold, &client.last_addr_recv, &client.last_primary_path, &mut client.cut_map, &mut client.rtt_map);
+                        for (local_addr, peer_addr) in scheduled_tuples {
+                            conn.send_ack_eliciting_on_path(local_addr, peer_addr).ok();
+                        }
+                        last_ack_eliciting_sent_time = app_data_start.elapsed();
+                    }
+                }
+            }
+            
 
 
             // Generate outgoing QUIC packets for all active connections and send
             // them on the UDP socket, until quiche reports that there are no more
             // packets to be sent.
-            /*
             for client in clients.values_mut() {
-                loop {
-                    let (write, send_info) = match client.conn.send(&mut out) {
-                        Ok(v) => v,
-
-                        Err(quiche::Error::Done) => {
-                            debug!("{} done writing", client.conn.trace_id());
-                            break;
-                        },
-
-                        Err(e) => {
-                            error!("{} send failed: {:?}", client.conn.trace_id(), e);
-
-                            client.conn.close(false, 0x1, b"fail").ok();
-                            break;
-                        },
-                    };
-
-                    if let Err(e) = socket.send_to(&out[..write], send_info.to) {
-                        if e.kind() == std::io::ErrorKind::WouldBlock {
-                            debug!("send() would block");
-                            break;
-                        }
-
-                        panic!("send() failed: {:?}", e);
-                    }
-
-                    debug!("{} written {} bytes", client.conn.trace_id(), write);
-                }
-            }*/
-            /*
-            continue_write = false;
-            for client in clients.values_mut() {
-                // Reduce max_send_burst by 25% if loss is increasing more than 0.1%.
-                let loss_rate =
-                    client.conn.stats().lost as f64 / client.conn.stats().sent as f64;
-                if loss_rate > client.loss_rate + 0.001 {
-                    client.max_send_burst = client.max_send_burst / 4 * 3;
-                    // Minimun bound of 10xMSS.
-                    client.max_send_burst =
-                        client.max_send_burst.max(client.max_datagram_size * 10);
-                    client.loss_rate = loss_rate;
-                }
-
-                let max_send_burst =
-                    client.conn.send_quantum().min(client.max_send_burst) /
-                        client.max_datagram_size *
-                        client.max_datagram_size;
-                let mut total_write = 0;
-                let mut dst_info: Option<quiche::SendInfo> = None;
-
-                while total_write < max_send_burst {
-                    let res = match dst_info {
-                        Some(info) => {println!("Sending on path from {:?} to {:?}", info.from, info.to);   client.conn.send_on_path(
-                            &mut out[total_write..max_send_burst],
-                            Some(info.from),
-                            Some(info.to),
-                        )},
-                        None =>
-                            client.conn.send(&mut out[total_write..max_send_burst]),
-                    };
-
-                    let (write, send_info) = match res {
-                        Ok(v) => v,
-
-                        Err(quiche::Error::Done) => {
-                            continue_write = dst_info.is_some();
-                            trace!("{} done writing", client.conn.trace_id());
-                            break;
-                        },
-
-                        Err(e) => {
-                            error!("{} send failed: {:?}", client.conn.trace_id(), e);
-
-                            client.conn.close(false, 0x1, b"fail").ok();
-                            break;
-                        },
-                    };
-
-                    total_write += write;
-
-                    // Use the first packet time to send, not the last.
-                    let _ = dst_info.get_or_insert(send_info);
-
-                    if write < client.max_datagram_size {
-                        continue_write = true;
-                        break;
-                    }
-                }
-
-                if total_write == 0 || dst_info.is_none() {
-                    continue;
-                }
-
-                if let Err(e) = Self::send_to(
-                    &socket,
-                    &out[..total_write],
-                    &dst_info.unwrap(),
-                    client.max_datagram_size,
-                ) {
-                    if e.kind() == std::io::ErrorKind::WouldBlock {
-                        trace!("send() would block");
-                        break;
-                    }
-
-                    panic!("send_to() failed: {:?}", e);
-                }
-
-                trace!("{} written {} bytes", client.conn.trace_id(), total_write);
-
-                if continue_write {
-                    trace!(
-                        "{} pause writing and consider another path",
-                        client.conn.trace_id()
-                    );
-                    break;
-                }
-
-                if total_write >= max_send_burst {
-                    trace!("{} pause writing", client.conn.trace_id(),);
-                    continue_write = true;
-                    break;
-                }
-            }*/
-
-
-            for client in clients.values_mut() {
-                let conn = client.conn.as_mut();
+                let mut conn = client.conn.as_mut();
                 let last_addr_recv = client.last_addr_recv;
+                let mut last_primary_path = client.last_primary_path;
 
                 // Determine in which order we are going to iterate over paths.
                 //let scheduled_tuples = lowest_latency_scheduler(&conn);
@@ -948,136 +776,17 @@ impl Io {
                     used_scheduler = "normal";
                 }
 
-                let mut scheduled_tuples = Self::scheduler_fn(&conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv);
+                let mut scheduled_tuples = Self::scheduler_fn(&mut conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv, &last_primary_path, &mut client.cut_map, &mut client.rtt_map);
 
                 // Generate outgoing QUIC packets and send them on the UDP socket, until
                 // quiche reports that there are no more packets to be sent.
-                if scheduler == "duplicate"{
-                    let mut n = 0;
-                    let mut first_offset = 0;
-                    let mut second_offset = 0;
-                    let stream_id = 0;
-                    for (local_addr, peer_addr) in scheduled_tuples {
-                        if n == 0 {                  
-                            info!(
-                                "sending on path ({}, {})",
-                                local_addr, peer_addr
-                            );
-                            let stream = conn.streams.get(stream_id);
-                            if !stream.is_none() {
-                                first_offset = stream.unwrap().send.emit_off;
-                            }
-
-                            loop {
-                                let (write, send_info) = match conn.send_on_path(
-                                    &mut out,
-                                    Some(local_addr),
-                                    Some(peer_addr),
-                                ) {
-                                    Ok(v) => v,
-
-                                    Err(quiche::Error::Done) => {
-                                        //println!("{} -> {}: done writing", local_addr, peer_addr);
-                                        break;
-                                    },
-
-                                    Err(e) => {
-                                        info!(
-                                            "{} -> {}: send failed: {:?}",
-                                            local_addr, peer_addr, e
-                                        );
-
-                                        conn.close(false, 0x1, b"fail").ok();
-                                        break;
-                                    },
-                                };
-
-                                if let Err(e) = socket.send_to(&out[..write], send_info.to) {
-                                    if e.kind() == std::io::ErrorKind::WouldBlock {
-                                        println!(
-                                            "{} -> {}: send() would block",
-                                            local_addr,
-                                            send_info.to
-                                        );
-                                        break;
-                                    }
-
-                                    panic!("send() failed: {:?}", e);
-                                }
-                            
-                                info!("{} -> {}: written {}", local_addr, send_info.to, write);
-                            
-                            }
-                            n += 1;
-                        } else if n == 1 {
-                            let stream = conn.streams.get_mut(stream_id);
-                            if !stream.is_none() {
-                                second_offset = stream.unwrap().send.emit_off;
-                            }
-                            let sent: usize = (second_offset - first_offset).try_into().unwrap();
-
-                            if sent != 0 && second_offset > first_offset {
-                                //copy the data to the other path
-                                //indicate stream data to be retransmitted
-                                let stream = conn.streams.get_mut(stream_id);
-                                if !stream.is_none(){
-                                    stream.unwrap().send.retransmit(first_offset, sent);
-                                }
-                                println!("Retransmitting stream data from offset {:?} to {:?}", first_offset, second_offset);
-                            } 
-                            info!(
-                                "sending on path ({}, {})",
-                                local_addr, peer_addr
-                            );
-                    
-                            loop {
-                                let (write, send_info) = match conn.send_on_path(
-                                    &mut out,
-                                    Some(local_addr),
-                                    Some(peer_addr),
-                                ) {
-                                    Ok(v) => v,
-
-                                    Err(quiche::Error::Done) => {
-                                        //println!("{} -> {}: done writing", local_addr, peer_addr);
-                                        break;
-                                    },
-
-                                    Err(e) => {
-                                        info!(
-                                            "{} -> {}: send failed: {:?}",
-                                            local_addr, peer_addr, e
-                                        );
-
-                                        conn.close(false, 0x1, b"fail").ok();
-                                        break;
-                                    },
-                                };
-
-                                if let Err(e) = socket.send_to(&out[..write], send_info.to) {
-                                    if e.kind() == std::io::ErrorKind::WouldBlock {
-                                        println!(
-                                            "{} -> {}: send() would block",
-                                            local_addr,
-                                            send_info.to
-                                        );
-                                        break;
-                                    }
-
-                                    panic!("send() failed: {:?}", e);
-                                }
-                            
-                                info!("{} -> {}: written {}", local_addr, send_info.to, write);
-                            }
-                        }
-                    }
-                } else if duplicate {
+                if duplicate {
                     let mut n = 0;
                     let mut first_offset = 0;
                     let mut second_offset = 0;
                     let stream_id = 0;
 
-                    let mut scheduled_tuples_duplicate = Self::scheduler_fn(&conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv);
+                    let mut scheduled_tuples_duplicate = Self::scheduler_fn(&mut conn, used_scheduler, &rcvd_time_map, &app_data_start, rcvd_threshold, &last_addr_recv, &last_primary_path, &mut client.cut_map, &mut client.rtt_map);
                     
                     let (local_addr1, peer_addr1) = match scheduled_tuples_duplicate.next() {
                         Some((local_addr, peer_addr)) => (local_addr, peer_addr),
@@ -1092,7 +801,13 @@ impl Io {
                         },
                     };
 
+                    let mut i = 0;
                     for (local_addr, peer_addr) in scheduled_tuples {
+                        if i==0{
+                            client.last_primary_path = peer_addr;
+                        }
+                        i += 1;
+
                         info!(
                             "sending on path ({}, {})",
                             local_addr, peer_addr
@@ -1111,7 +826,7 @@ impl Io {
                                 Ok(v) => v,
         
                                 Err(quiche::Error::Done) => {
-                                    //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                    debug!("{} -> {}: done writing", local_addr, peer_addr);
                                     break;
                                 },
         
@@ -1138,25 +853,15 @@ impl Io {
         
                                 panic!("send() failed: {:?}", e);
                             }
-                
-                            //println!("{} -> {}: written {}", local_addr, send_info.to, write);
-                            
+                                            
                             // DUPLICATE ON PATH 
                             let stream = conn.streams.get_mut(stream_id);
                             if !stream.is_none() {
                                 second_offset = stream.unwrap().send.emit_off;
                             }
                             let sent: usize = (second_offset - first_offset).try_into().unwrap();
-                            //println!("Number of active paths = {:?}", conn.paths.count_active_paths());
                             if conn.paths.count_active_paths() > 1 && sent != 0 && second_offset > first_offset {
                                 //indicate stream data to be retransmitted and flushable
-                                /*
-                                let stream = conn.streams.get_mut(stream_id);
-                                if !stream.is_none(){
-                                    stream.unwrap().send.retransmit(first_offset, sent);
-                                }*/
-                                //println!("Retransmitting stream data from offset {:?} to {:?}", first_offset, second_offset);
-
                                 let stream = match conn.streams.get_mut(stream_id) {
                                     Some(v) => v,
         
@@ -1187,16 +892,7 @@ impl Io {
                                 self.retrans_count += 1;
                                 p.retrans_count += 1;
                                 */
-                                let laddr = match n {
-                                    0 => local_addr2,
-                                    1 => local_addr1,
-                                    _ => unreachable!(),
-                                };
-                                let paddr = match n {
-                                    0 => peer_addr2,
-                                    1 => peer_addr1,
-                                    _ => unreachable!(),
-                                };
+                                let (laddr, paddr) = Self::get_other_path(local_addr, peer_addr, &mut conn).unwrap();
         
                                 info!(
                                     "sending duplicate on path ({}, {})",
@@ -1236,7 +932,7 @@ impl Io {
                                     panic!("send() failed: {:?}", e);
                                 }
                     
-                                //println!("{} -> {}: duplicate written {}", laddr, send_info.to, write);
+                                info!("{} -> {}: duplicate written {}", laddr, send_info.to, write);
                                 
                             }
                             
@@ -1250,8 +946,9 @@ impl Io {
                     let mut i = 0;
                     for (local_addr, peer_addr) in scheduled_tuples {
                         i += 1;
-                        info!("Iteration {} on path ({}, {})", i, local_addr, peer_addr);
-
+                        if (i==1){
+                            client.last_primary_path = peer_addr;
+                        }
                         info!(
                             "sending on path ({}, {})",
                             local_addr, peer_addr
@@ -1265,7 +962,7 @@ impl Io {
                                 Ok(v) => v,
     
                                 Err(quiche::Error::Done) => {
-                                    //println!("{} -> {}: done writing", local_addr, peer_addr);
+                                    debug!("{} -> {}: done writing", local_addr, peer_addr);
                                     break;
                                 },
     
@@ -1280,7 +977,6 @@ impl Io {
                                 },
                             };
 
-                            
                             if let Err(e) = socket.send_to(&out[..write], send_info.to) {
                                 if e.kind() == std::io::ErrorKind::WouldBlock {
                                     println!(
@@ -1337,12 +1033,15 @@ impl Io {
     /// Generate a ordered list of 4-tuples on which the host should send packets,
     /// following a lowest-latency scheduling.
     fn scheduler_fn(
-        conn: &quiche::Connection,
+        conn: &mut quiche::Connection,
         scheduler: &str,
         rcvd_time_map: &HashMap<std::net::SocketAddr, Duration>,
         start: &std::time::Instant,
         threshold: u64,
         last_addr_recv: &std::net::SocketAddr,
+        last_primary_path: &std::net::SocketAddr,
+        cut_map: &mut HashMap<std::net::SocketAddr, bool>,
+        rtt_map: &mut HashMap<std::net::SocketAddr, std::time::Duration>,
     ) -> impl Iterator<Item = (std::net::SocketAddr, std::net::SocketAddr)> {
         if scheduler == "lrtt" {
             //lowest-rtt-first scheduler
@@ -1350,63 +1049,64 @@ impl Io {
             let mut paths: Vec<_> = conn
                 .path_stats()
                 .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
-                /*
-                .filter(|p| {
-                    if let Some(time) = rcvd_time_map.get(&p.peer_addr) {
-                        let n = start.elapsed() - *time;
-                        //let thres = std::time::Duration::from_millis(threshold);
-                        //let thres = 2*p.rtt;
-                        //PTO calculation
-                        let thres = p.rtt + 4*p.rttvar + 2*std::time::Duration::from_millis(threshold);
-                        info!("path {:?} with threshold : {:?} <= {:?}", p.path_id, n, thres);
-                        /*
-                        if n > thres {
-                            println!("path {:?} with threshold : {:?}", p.path_id, n);
-                        }*/
-                        n <= thres
-                    } else {
-                        true
-                    }
-                })
-                */
                 .sorted_by_key(|p| {info!("path {:?} with RTT : {:?}", p, p.rtt); p.rtt})
                 .map(|p| (p.local_addr, p.peer_addr))
                 .collect();
 
             paths.into_iter()
         } else if scheduler == "lrtt2" { 
-            //lowest-rtt-first scheduler
+            //lowest-rtt-first scheduler improved
             use itertools::Itertools;
+            let mut primary_path = None;
+            let mut i = 0;
+            let mut cutted = false;
             let mut paths: Vec<_> = conn
                 .path_stats()
                 .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
                 .sorted_by_key(|p| {
                     if let Some(time) = rcvd_time_map.get(&p.peer_addr) {
                         let n = start.elapsed() - *time;
-                        //let thres = std::time::Duration::from_millis(threshold);
-                        //let thres = 2*p.rtt;
                         //PTO calculation
-                        let thres = p.rtt + std::cmp::max(4*p.rttvar, std::time::Duration::from_millis(1))  + 2*std::time::Duration::from_millis(threshold);
-                        //let thres = p.rtt + 4*p.rttvar  + std::time::Duration::from_millis(threshold);
-                        info!("path {:?} with threshold : {:?} <= {:?}", p.path_id, n, thres);
-                        /*
-                        if n > thres {
-                            println!("path {:?} with threshold : {:?}", p.path_id, n);
-                        }*/
-                        info!("path {:?} with RTT : {:?}", p.path_id, p.rtt);
-    
+                        let thres = p.rtt + std::cmp::max(4*p.rttvar, std::time::Duration::from_millis(1))  + std::time::Duration::from_millis(threshold);
                         if n > thres{
-                            info!("path {:?} cut", p.path_id);
+                            if (p.peer_addr == *last_addr_recv){
+                                cutted = true;
+                            }
+                            cut_map.insert(p.peer_addr, true);
+                            rtt_map.insert(p.peer_addr, p.rtt);
                             std::time::Duration::from_secs(u64::MAX)
+                        } else if *cut_map.get(&p.peer_addr).unwrap_or_else(|| &false) {
+                            if p.rtt == *rtt_map.get(&p.peer_addr).unwrap() {
+                                std::time::Duration::from_secs(u64::MAX)
+                            } else {
+                                cut_map.insert(p.peer_addr, false);
+                                rtt_map.insert(p.peer_addr, p.rtt);
+                                p.rtt
+                            }
                         } else {
+                            rtt_map.insert(p.peer_addr, p.rtt);
                             p.rtt
                         }
                     } else {
+                        rtt_map.insert(p.peer_addr, p.rtt);
                         p.rtt
                     }
                 })
-                .map(|p| (p.local_addr, p.peer_addr))
-                .collect();
+                .map(|p| {
+                    if i == 0 {
+                        primary_path = Some(p.peer_addr);
+                    }
+                    i += 1;
+                
+                    (p.local_addr, p.peer_addr)})
+                    .collect();
+
+            //mark all packets in flight as lost
+            if cutted && conn.is_established() && !primary_path.is_none() && primary_path != Some(*last_primary_path) {
+                let path_id = conn.path_stats().find(|p| p.peer_addr == *last_primary_path).unwrap().path_id;
+                println!("Marking all packets from path {:?} as lost", path_id);
+                conn.paths.get_mut(path_id.try_into().unwrap()).unwrap().recovery.mark_all_inflight_as_lost(std::time::Instant::now(), " ");
+            }
     
             paths.into_iter()
         } else if scheduler == "normal" {
@@ -1449,6 +1149,14 @@ impl Io {
             paths.into_iter()
         }
         
+    }
+
+    fn get_other_path(src: std::net::SocketAddr, dest: std::net::SocketAddr, conn: &mut quiche::Connection,)
+    -> Option<(std::net::SocketAddr, std::net::SocketAddr)> {
+        conn.path_stats()
+            .filter(|p| !matches!(p.state, quiche::PathState::Closed(_)))
+            .find(|p| p.local_addr == src && p.peer_addr != dest)
+            .map(|p| {(p.local_addr, p.peer_addr)})
     }
 
     fn handle_path_events(client: &mut QClient) {
@@ -1726,7 +1434,6 @@ impl Client {
                 Some(msg) = self.from_io.recv() => self.handle_io_msg(msg).await?,
                 Ok(len) = self.stream.read(&mut buf[..]) => {
                     if len == 0 && grpc_up {
-                        println!("Channel to gRPC closed");
                         return Ok(());
                     }
                     grpc_up = true;
@@ -1734,7 +1441,6 @@ impl Client {
                 },
             }
             if self.from_io.is_closed() {
-                println!("Channel from IO closed");
                 return Ok(());
             }
 
@@ -1743,28 +1449,11 @@ impl Client {
     }
 
     async fn handle_io_msg(&mut self, msg: Vec<u8>) -> Result<()> {
-        //println!("[SERVER] Received IO message of size: {:?}", msg.len());
-        //sleep(Duration::from_millis(1)).await;
-        
-        /* 
-        println!("[SERVER] Received IO message of size: {:?}", msg.len());
-        let vec_to_string = String::from_utf8_lossy(&msg);
-        println!("{:?}", msg);
-        println!("{}", vec_to_string); 
-         */
         self.stream.write(&msg).await?;
         Ok(())
     }
 
     async fn handle_grpc_msg(&mut self, msg: &[u8]) -> Result<()> {
-        //println!("Received gRPC message: {:?}", msg);
-        //println!("[SERVER] gRPC message of size: {:?}", msg.len());
- 
-        /*
-        let vec_to_string = String::from_utf8_lossy(msg.clone());
-        println!("{:?}", msg);
-        println!("{}", vec_to_string); 
-         */
         self.to_io.send((msg.to_vec(), self.id.clone()));
 
         Ok(())

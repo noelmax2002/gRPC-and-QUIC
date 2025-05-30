@@ -13,6 +13,14 @@ name = "client"
 path = "src/client.rs"
 
 [[bin]] 
+name = "serverb"
+path = "src/Bridging/server.rs"
+
+[[bin]] 
+name = "clientb"
+path = "src/Bridging/client.rs"
+
+[[bin]] 
 name = "serverHTTP2"
 path = "src/HTTP2/serverHTTP2.rs"
 required-features = ["tls"]
